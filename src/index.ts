@@ -1,20 +1,37 @@
-import fastify, { FastifyInstance, FastifyServerOptions } from 'fastify'
+import express from "express";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+import cors from "cors";
+dotenv.config();
 
-const server: FastifyInstance = fastify({
-  logger: true
-} as FastifyServerOptions)
+const app = express();
+const port = process.env.PORT || 3000;
 
-server.get('/', async (request, reply) => {
-  return { hello: 'world' }
-})
+const supabase = createClient(
+	process.env.SUPABASE_URL!,
+	process.env.SUPABASE_KEY!
+);
+app.use(cors({ origin: "http://localhost:5173" }));
+app.use(express.json());
 
-const start = async () => {
-  try {
-    await server.listen({ port: 3000 })
-  } catch (err) {
-    server.log.error(err)
-    process.exit(1)
-  }
-}
+app.post("/api/save-user", async (req, res) => {
+	const { google_id, email, display_name, profile_picture_url, last_login } =
+		req.body;
 
-start()
+	const { data, error } = await supabase
+		.from("users")
+		.upsert(
+			{ google_id, email, display_name, profile_picture_url, last_login },
+			{ onConflict: "google_id" },
+		);
+
+	if (error) {
+		res.status(500).json({ error: error.message });
+	} else {
+		res.status(200).json({ data });
+	}
+});
+
+app.listen(port, () => {
+	console.log(`Server is running on port ${port}`);
+});
