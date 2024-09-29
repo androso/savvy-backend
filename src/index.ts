@@ -1,32 +1,33 @@
 import express from "express";
+import dotenv from "dotenv";
 import cors from "cors";
-import bodyParser from "body-parser";
-import { createServer } from "http";
-import client from "./database/db"
+dotenv.config();
+import supabase from "./database/db";
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-client.connect((err)=>{
-  err
-  ? console.log(`error en la conexion ${err.message}`)
-  : console.log("conexion exitosa a la DB")
-})
+app.use(cors({ origin: "http://localhost:5173" }));
+app.use(express.json());
 
-app.use(cors({
-  credentials: true
-}))
-app.use(bodyParser.json())
+app.post("/api/save-user", async (req, res) => {
+	const { google_id, email, display_name, profile_picture_url, last_login } =
+		req.body;
 
-app.get('/users', async (req, res)=>{
-  try{
-    const response = await client.query("SELECT * FROM person;")
-    res.status(200).json(response.rows)
-  }catch{
-    res.status(500).send({message: 'Error al obtener usuarios'})
-  }
-})
+	const { data, error } = await supabase
+		.from("users")
+		.upsert(
+			{ google_id, email, display_name, profile_picture_url, last_login },
+			{ onConflict: "google_id" }
+		);
 
-const server = createServer(app)
-server.listen(3000, ()=>{
-  console.log("Server is running on port 3000 \n http://localhost:3000")
-})
+	if (error) {
+		res.status(500).json({ error: error.message });
+	} else {
+		res.status(200).json({ data });
+	}
+});
+
+app.listen(port, () => {
+	console.log(`Server is running on port ${port}`);
+});

@@ -1,13 +1,8 @@
-import { Client } from "pg";
-import dotenv from "dotenv"
-dotenv.config()
+import { createClient } from "@supabase/supabase-js";
 
-const client = new Client({
-  host:process.env.DB_HOST,
-  user: process.env.DB_USER,
-  port: 5432,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-})
+const supabase = createClient(
+	process.env.SUPABASE_URL!,
+	process.env.SUPABASE_KEY!
+);
 
-export default client
+export default supabase;
