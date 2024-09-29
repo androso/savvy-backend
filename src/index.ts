@@ -1,20 +1,32 @@
-import fastify, { FastifyInstance, FastifyServerOptions } from 'fastify'
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import { createServer } from "http";
+import client from "./database/db"
 
-const server: FastifyInstance = fastify({
-  logger: true
-} as FastifyServerOptions)
+const app = express();
 
-server.get('/', async (request, reply) => {
-  return { hello: 'world' }
+client.connect((err)=>{
+  err
+  ? console.log(`error en la conexion ${err.message}`)
+  : console.log("conexion exitosa a la DB")
 })
 
-const start = async () => {
-  try {
-    await server.listen({ port: 3000 })
-  } catch (err) {
-    server.log.error(err)
-    process.exit(1)
-  }
-}
+app.use(cors({
+  credentials: true
+}))
+app.use(bodyParser.json())
 
-start()
+app.get('/users', async (req, res)=>{
+  try{
+    const response = await client.query("SELECT * FROM person;")
+    res.status(200).json(response.rows)
+  }catch{
+    res.status(500).send({message: 'Error al obtener usuarios'})
+  }
+})
+
+const server = createServer(app)
+server.listen(3000, ()=>{
+  console.log("Server is running on port 3000 \n http://localhost:3000")
+})
