@@ -67,6 +67,39 @@ app
 			}
 		}
 	});
+app
+	.route("/api/courses/:id")
+	.delete(async (req, res) => {
+		const { id } = req.params;
+
+		const { data, error } = await supabase
+			.from("courses")
+			.delete()
+			.eq("course_id", id)
+			.single();
+
+		if (error) {
+			res.status(500).json({ error: error.message });
+		} else {
+			res.status(200).json({ data });
+		}
+	})
+	.put(async (req, res) => {
+		const { id } = req.params;
+		const { course_name } = req.body;
+
+		const { data, error } = await supabase
+			.from("courses")
+			.update({ course_name })
+			.eq("course_id", id)
+			.single();
+
+		if (error) {
+			res.status(500).json({ error: error.message });
+		} else {
+			res.status(200).json({ data });
+		}
+	});
 
 app.listen(port, () => {
 	console.log(`Server is running on port ${port}`);
