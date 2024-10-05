@@ -51,13 +51,13 @@ app
 		}
 	})
 	.post(async (req, res) => {
-		const { user_id, course_name } = req.body;
+		const { user_id, course_name, description } = req.body;
 		if (!user_id || !course_name) {
 			res.status(400).json({ error: "Not enough arguments" });
 		} else {
 			const { data, error } = await supabase
 				.from("courses")
-				.insert({ user_id, course_name })
+				.insert({ user_id, course_name, description })
 				.select("*")
 				.single();
 			if (error) {
@@ -86,11 +86,15 @@ app
 	})
 	.put(async (req, res) => {
 		const { id } = req.params;
-		const { course_name } = req.body;
+		const { course_name, description } = req.body;
+
+		const updateData: any = {};
+		if (course_name != null) updateData.course_name = course_name;
+		if (description != null) updateData.description = description;
 
 		const { data, error } = await supabase
 			.from("courses")
-			.update({ course_name })
+			.update(updateData)
 			.eq("course_id", id)
 			.single();
 
