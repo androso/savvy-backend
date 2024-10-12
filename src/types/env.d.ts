@@ -5,6 +5,6 @@ declare namespace NodeJS{
         DB_HOST: string;
         DB_PORT: string; // Use string if you want to keep it consistent with process.env
         DB_NAME: string;
-        // Add any other environment variables here
+        SECRET_KEY: string;
     }
 }
