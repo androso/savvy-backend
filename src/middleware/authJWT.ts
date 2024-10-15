@@ -1,22 +1,42 @@
+import { error } from "console";
 import { Response, Request, NextFunction } from "express";
 import { jwtVerify, JWTPayload } from "jose";
 
-declare module 'express-serve-static-core' {
+interface ExtendedJWTPayload extends JWTPayload{
+    id: number,
+    google_id: string,
+    email: string
+}
+
+declare module "express-serve-static-core" {
     interface Request {
-        user?: JWTPayload | string;
+        user?: ExtendedJWTPayload
     }
 }
 
-export async function authenticateToken( req: Request, res: Response, next: NextFunction): Promise<any> {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.sendStatus(401)
-    // res.status(401).send("Unauthorized")
-    try {
-        const {payload} = await jwtVerify(token, new TextEncoder().encode(process.env.SECRET_KEY))
-        req.user = payload;
-        return next();
-    } catch (error) {
-        return res.sendStatus(403)
+
+export async function authenticateToken(
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<any> {
+    const token =
+        req.headers["authorization"]?.split(" ")[1] || req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ error: "No token provided" });
     }
 
+    try {
+        const { payload } = await jwtVerify(
+            token,
+            new TextEncoder().encode(process.env.SECRET_KEY)
+        );
+
+        req.user = payload as ExtendedJWTPayload;
+        
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: "Invalid Token" });
+    }
 }
