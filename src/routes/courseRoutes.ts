@@ -7,6 +7,21 @@ import { zodResponseFormat } from "openai/helpers/zod";
 
 const router = Router();
 
+interface BaseCourse {
+	course_id: number;
+	user_id: number;
+	course_name: string;
+	description: string | null;
+}
+
+interface CourseDB extends BaseCourse {
+	created_at: string;
+}
+
+interface Course {
+	created_at: Date;
+}
+
 router.get("/", authenticateToken, async (req, res) => {
 	const user_id = req.user?.id;
 
@@ -81,6 +96,103 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 		res.status(500).json({ error: error.message });
 	} else {
 		res.status(200).json({ data });
+	}
+});
+
+router.get("/:id/suggested-topics", authenticateToken, async (req, res) => {
+	const courseId = parseInt(req.params.id);
+	const user_id = req.user.id;
+
+	if (courseId) {
+		const { data: suggestedTopics, error: suggestedTopicsError } =
+			await supabase
+				.from("suggested_topics")
+				.select("*")
+				.eq("course_id", courseId);
+
+		if (suggestedTopicsError) {
+			res.status(500).json({ error: suggestedTopicsError.message });
+			return;
+		}
+
+		if (suggestedTopics && suggestedTopics.length > 0) {
+			res.status(200).json({ topics: suggestedTopics });
+			return;
+		}
+
+		const openai = new OpenAI();
+		const suggestedTopicsList = z.object({
+			topics: z.array(z.string()),
+		});
+
+		const { data, error } = await supabase
+			.from("courses")
+			.select("*")
+			.eq("course_id", courseId)
+			.eq("user_id", user_id)
+			.single();
+
+		const course = data as CourseDB;
+
+		if (error || !course) {
+			res
+				.status(404)
+				.json({ error: "Course not found or you do not have access to it" });
+			return;
+		}
+
+		const courseTitle = course.course_name;
+		const courseDescription = course.description;
+
+		try {
+			const completion = await openai.beta.chat.completions.parse({
+				model: "gpt-4o-mini",
+				messages: [
+					{
+						role: "system",
+						content:
+							"Eres un profesor super util, sabes como dividir un tema en multiples partes para que tus estudiantes aprendar de una mejor manera y más rápido",
+					},
+					{
+						role: "user",
+						content: `
+						Te daré un título de curso y también una descripción del curso, tu tarea es devolver una lista de 5 temas sugeridos para empezar a aprender sobre el tema.
+						título del curso: ${courseTitle}
+						descripción del curso: ${courseDescription}
+					`,
+					},
+				],
+				response_format: zodResponseFormat(suggestedTopicsList, "topicsList"),
+			});
+
+			const topics = completion.choices[0].message.parsed?.topics;
+
+			if (topics) {
+				const insertedTopics = [];
+				for (const topic of topics) {
+					const { data } = await supabase
+						.from("suggested_topics")
+						.insert({
+							topic_name: topic,
+							course_id: courseId,
+						})
+						.select("*")
+						.single();
+
+					insertedTopics.push(data);
+				}
+				res.status(200).json({ topics: insertedTopics });
+				return;
+			}
+		} catch (err) {
+			res.status(500).json({ error: err });
+			return;
+		}
+	} else {
+		res
+			.status(400)
+			.json({ error: "Course title and description are required" });
+		return;
 	}
 });
 
