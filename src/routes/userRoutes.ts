@@ -60,7 +60,7 @@ router.post("/", async (req, res) => {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
 			sameSite: "strict",
-			maxAge: 2 * 60 * 60 * 1000, // 2 hours
+			maxAge: 18 * 60 * 60 * 1000, // 18 hours
 		});
 		res.status(200).json({ data, tokenjwt });
 	}
