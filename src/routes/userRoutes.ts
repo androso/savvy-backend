@@ -17,11 +17,6 @@ interface UserDb extends BaseUser {
 	last_login: string;
 }
 
-// interface User extends BaseUser {
-// 	created_at: Date;
-// 	last_login: Date;
-// }
-
 export interface JwtUser extends Omit<BaseUser, "user_id"> {}
 
 router.post("/", async (req, res) => {
