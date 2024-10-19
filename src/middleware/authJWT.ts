@@ -36,10 +36,19 @@ export async function authenticateToken(
 			.single();
 
 		if (dbError || !user) {
-			return res.status(401).json({ error: "User not found" });
+			res.status(401).json({ error: "User not found" });
+			return;
 		}
 
-		req.user = user as JwtUser;
+		req.user = {
+			id: user.user_id,
+			google_id: payload.user_id,
+			email: payload.user_id,
+			display_name: user.display_name,
+			profile_picture_url: user.profile_picture_url,
+			created_at: new Date(user.created_at),
+			last_login: new Date(user.last_date),
+		} as JwtUser;
 
 		next();
 	} catch (error) {
