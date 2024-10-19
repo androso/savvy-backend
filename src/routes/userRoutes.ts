@@ -4,7 +4,27 @@ import { SignJWT } from "jose";
 
 const router = Router();
 
-router.post("/api/login", async (req, res) => {
+interface BaseUser {
+	google_id: string;
+	email: string;
+	display_name: string;
+	profile_picture_url: string;
+	user_id: number;
+}
+
+interface UserDb extends BaseUser {
+	created_at: string;
+	last_login: string;
+}
+
+// interface User extends BaseUser {
+// 	created_at: Date;
+// 	last_login: Date;
+// }
+
+export interface JwtUser extends Omit<BaseUser, "user_id"> {}
+
+router.post("/", async (req, res) => {
 	const { google_id, email, display_name, profile_picture_url, last_login } =
 		req.body;
 
@@ -23,17 +43,19 @@ router.post("/api/login", async (req, res) => {
 			.json({ error: "Invalid user data returned from the database" });
 		return;
 	}
-
+	const user = data as UserDb;
 	const encoder = new TextEncoder();
 	const secretKey = encoder.encode(process.env.SECRET_KEY);
 	const tokenjwt = await new SignJWT({
-		id: data.id,
-		gooogle_id: data.google_id,
+		id: user.user_id,
+		google_id: data.google_id,
 		email: data.email,
+		display_name: user.display_name,
+		profile_picture_url: user.profile_picture_url,
 	})
 		.setProtectedHeader({ alg: "HS256" })
 		.setIssuedAt()
-		.setExpirationTime("2h")
+		.setExpirationTime("18h")
 		.sign(secretKey);
 
 	if (error) {
