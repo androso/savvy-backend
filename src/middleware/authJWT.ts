@@ -49,7 +49,7 @@ export async function authenticateToken(
 			created_at: new Date(user.created_at),
 			last_login: new Date(user.last_date),
 		} as JwtUser;
-
+        
 		next();
 	} catch (error) {
 		res.status(401).json({ error: "Invalid Token" });

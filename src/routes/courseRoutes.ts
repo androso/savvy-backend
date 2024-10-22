@@ -24,6 +24,7 @@ interface Course {
 
 router.get("/", authenticateToken, async (req, res) => {
 	const user_id = req.user?.id;
+	
 
 	const { data, error } = await supabase
 		.from("courses")
@@ -39,7 +40,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
 router.post("/", authenticateToken, async (req, res) => {
 	const { course_name, description } = req.body;
-	const user_id = req.user.id;
+	const user_id = req.user?.id;
 
 	if (!user_id || !course_name || !description) {
 		res.status(400).json({ error: "Not enough arguments" });
@@ -61,7 +62,7 @@ router.post("/", authenticateToken, async (req, res) => {
 router.put("/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
 	const { course_name, description } = req.body;
-	const user_id = req.user.id;
+	const user_id = req.user?.id;
 
 	const updateData: any = {};
 	if (course_name != null) updateData.course_name = course_name;
@@ -83,7 +84,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
 
 router.delete("/:id", authenticateToken, async (req, res) => {
 	const { id } = req.params;
-	const user_id = req.user.id;
+	const user_id = req.user?.id;
 
 	const { data, error } = await supabase
 		.from("courses")
@@ -101,7 +102,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
 router.get("/:id/suggested-topics", authenticateToken, async (req, res) => {
 	const courseId = parseInt(req.params.id);
-	const user_id = req.user.id;
+	const user_id = req.user?.id;
 
 	if (courseId) {
 		const { data: suggestedTopics, error: suggestedTopicsError } =

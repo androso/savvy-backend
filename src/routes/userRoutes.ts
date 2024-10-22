@@ -17,7 +17,11 @@ interface UserDb extends BaseUser {
 	last_login: string;
 }
 
-export interface JwtUser extends Omit<BaseUser, "user_id"> {}
+export interface JwtUser extends Omit<BaseUser, "user_id"> {
+	id: number
+	created_at: Date
+	last_login: Date
+}
 
 router.post("/", async (req, res) => {
 	const { google_id, email, display_name, profile_picture_url, last_login } =
