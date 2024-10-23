@@ -4,6 +4,7 @@ import supabase from "../database/db";
 import OpenAI from "openai";
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
+import validUUID from '../helpers/validUUID'
 
 const router = Router();
 
@@ -24,7 +25,6 @@ interface Course {
 
 router.get("/", authenticateToken, async (req, res) => {
 	const user_id = req.user?.id;
-	
 
 	const { data, error } = await supabase
 		.from("courses")
@@ -37,6 +37,86 @@ router.get("/", authenticateToken, async (req, res) => {
 		res.status(200).json({ data });
 	}
 });
+
+router.get('/:id/topics', authenticateToken, async (req, res) => {
+    try {
+        //try get the user_id
+        const user_id = req.user?.id;
+		const course_id = req.params.id;
+
+        //get the current topic of client 
+        const { data, error } = await supabase
+            .from('courses')
+            .select('course_id')
+            .eq('user_id', user_id);
+
+        if (error) {
+            res.status(500).json({ error: error.message });
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            res.status(404).json({ error: 'No courses found for this user' });
+            return;
+        }
+
+        const { data: topics, error: topicsError } = await supabase
+            .from('topics')
+            .select('*')
+            .eq('course_id', course_id);
+
+        if (topicsError) {
+            res.status(500).json({ error: topicsError.message });
+        }
+        res.status(200).json({ data: topics });
+    }
+    catch (error) {
+        res.status(500).json({ error });
+    }
+
+})
+
+router.get('/:id/topics/:topicId/flashcards', authenticateToken, (req, res)=>{
+	try{
+		const user_id = req.user?.id;
+		const course_id = req.params.id;
+		const topic_id = req.params.topicId;
+		if(!validUUID(topic_id)){
+			res.status(400).json({error: "Invalid course_id or topic_id."});
+			return;
+		}
+
+		supabase
+			.from('topics')
+			.select('topic_id')
+			.eq('course_id', course_id)
+			.then(({data: topics, error: topicsError})=>{
+				if(topicsError){
+					res.status(500).json({error: topicsError.message});
+					return;
+				}
+				if(!topics || topics.length === 0){
+					res.status(404).json({message: "No topics found for the user."})
+					return;
+				}
+				const topicIds = topics.map((topic: any) => topic.topic_id)
+				supabase
+					.from('flashcards')
+					.select('*')
+					.in('topic_id', topicIds)
+					.then(({data: flashcards, error: flashcardsError})=>{
+						if(flashcardsError){
+							res.status(500).json({error: flashcardsError.message});
+							return;
+						}
+						res.status(200).json({flashcards});
+					})
+			})
+	}catch(error){
+		res.status(500).json({ error: 'An unexpected error occurred.' });
+	}
+})
+
 
 router.post("/", authenticateToken, async (req, res) => {
 	const { course_name, description } = req.body;
