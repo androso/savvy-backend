@@ -5,8 +5,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import courseRoutes from "./routes/courseRoutes";
 import userRoutes from "./routes/userRoutes";
-import topicsRoutes from "./routes/topicsRoutes";
 import flashcard from "./routes/flashcard"
+import swaggerEndPoint from "./swagger";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -17,9 +17,10 @@ app.use(cookieParser());
 
 app.use("/api/courses", courseRoutes);
 app.use("/api/login", userRoutes);
-app.use("/api/topics", topicsRoutes);
 app.use('/api/flashcards', flashcard);
+
 
 app.listen(port, () => {
 	console.log(`Server is running on port ${port}`);
+	swaggerEndPoint(app, port)
 });
