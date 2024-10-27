@@ -160,8 +160,8 @@ export const deleteCourse = async (req: Request, res: Response) => {
 	}
 };
 
-export const getSuggestedTopics = async (req, res) => {
-	const courseId = parseInt(req.params.id);
+export const getSuggestedTopics = async (req:Request, res: Response) => {
+	const courseId = req.params.id;
 	const user_id = req.user?.id;
 
 	if (courseId) {
