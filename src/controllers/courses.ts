@@ -102,7 +102,7 @@ export const createCourse = async (req: Request, res: Response) => {
 	const { course_name, description } = req.body;
 	const user_id = req.user?.id;
 
-	if (!user_id || !course_name || !description) {
+	if (!user_id || !course_name) {
 		res.status(400).json({ error: "Not enough arguments" });
 	} else {
 		const { data, error } = await supabase
