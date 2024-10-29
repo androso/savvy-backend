@@ -9,7 +9,7 @@ import flashcard from "./routes/flashcard"
 import swaggerEndPoint from "./swagger";
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT as string, 10) || 3000;
 
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
