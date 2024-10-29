@@ -1,17 +1,29 @@
-import swaggerDoc from 'swagger-jsdoc'
-import swaggerUI from 'swagger-ui-express'
-import { Express, Response, Request } from 'express'
-import YAML from 'yamljs'
+import swaggerJsDoc from "swagger-jsdoc";
+import swaggerUI from "swagger-ui-express";
+import { Express, Request, Response } from "express";
 
-const swaggerDocument = YAML.load('./src/swagger.yaml')
+const swaggerOptions = {
+    definition: {
+        openapi: "3.0.0",
+        info: { 
+            title: "API Tutor Inteligente - Savvy",
+            description: "API para el proyecto de Tutor Inteligente de Savvy",
+            version: "1.0.0",
+        },
+    },
+    apis: ["./src/routes/*.ts"],
+};
 
-const swaggerEndPoint = (app: Express, port: number | string)=>{
-    app.use('/api-docs',swaggerUI.serve, swaggerUI.setup(swaggerDocument))
-    app.get('/docs.json', (req: Request, res: Response)=>{
+//Documentación de la API JSON
+const swaggerSpec = swaggerJsDoc(swaggerOptions);
+
+const swaggerDocs = (app: Express, port: number)=>{
+    app.use(swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+    app.get("/docs.json", (req: Request, res: Response) => {
         res.setHeader("Content-Type", "application/json");
-        res.send(swaggerDocument)
-    })   
-    console.log(`Documentation is avaible on http://localhost:${port}/api-docs`)
-}
+        res.send(swaggerSpec);
+    });
+    console.log(`Documentación disponible en http://localhost:${port}/docs.json`);
+};
 
-export default swaggerEndPoint;
+export default swaggerDocs;
