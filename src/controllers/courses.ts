@@ -1,10 +1,8 @@
 import supabase from "../database/db";
 import type { Request, Response } from "express";
 import isValidUUID from "../helpers/validUUID";
-import OpenAI from "openai";
-import { z } from "zod";
 import { CourseDB } from "../routes/courseRoutes";
-import { zodResponseFormat } from "openai/helpers/zod";
+import { createSuggestedTopics, openai } from "../openaiClient";
 
 export const getCourses = async (req: Request, res: Response) => {
 	const user_id = req.user?.id;
@@ -160,7 +158,7 @@ export const deleteCourse = async (req: Request, res: Response) => {
 	}
 };
 
-export const getSuggestedTopics = async (req:Request, res: Response) => {
+export const getSuggestedTopics = async (req: Request, res: Response) => {
 	const courseId = req.params.id;
 	const user_id = req.user?.id;
 
@@ -181,11 +179,6 @@ export const getSuggestedTopics = async (req:Request, res: Response) => {
 			return;
 		}
 
-		const openai = new OpenAI();
-		const suggestedTopicsList = z.object({
-			topics: z.array(z.string()),
-		});
-
 		const { data, error } = await supabase
 			.from("courses")
 			.select("*")
@@ -202,33 +195,16 @@ export const getSuggestedTopics = async (req:Request, res: Response) => {
 			return;
 		}
 
-		const courseTitle = course.course_name;
-		const courseDescription = course.description;
-
 		try {
-			const completion = await openai.beta.chat.completions.parse({
-				model: "gpt-4o-mini",
-				messages: [
-					{
-						role: "system",
-						content:
-							"Eres un profesor super util, sabes como dividir un tema en multiples partes para que tus estudiantes aprendar de una mejor manera y más rápido",
-					},
-					{
-						role: "user",
-						content: `
-						Te daré un título de curso y también una descripción del curso, tu tarea es devolver una lista de 5 temas sugeridos para empezar a aprender sobre el tema.
-						título del curso: ${courseTitle}
-						descripción del curso: ${courseDescription}
-					`,
-					},
-				],
-				response_format: zodResponseFormat(suggestedTopicsList, "topicsList"),
-			});
+			const courseTitle = course.course_name;
+			const courseDescription = course.description;
 
-			const topics = completion.choices[0].message.parsed?.topics;
+			const topics = await createSuggestedTopics(
+				courseTitle,
+				courseDescription
+			);
 
-			if (topics) {
+			if (topics.length > 0) {
 				const insertedTopics = [];
 				for (const topic of topics) {
 					const { data } = await supabase

@@ -1,10 +1,5 @@
 import { Router } from "express";
 import { authenticateToken } from "../middleware/authJWT";
-import supabase from "../database/db";
-import OpenAI from "openai";
-import { z } from "zod";
-import { zodResponseFormat } from "openai/helpers/zod";
-import validUUID from "../helpers/validUUID";
 import { createCourse, deleteCourse, getCourses, getFlashcardsForTopic, getSuggestedTopics, getTopicsForCourse, updateCourse } from "../controllers/courses";
 
 const router = Router();
@@ -13,7 +8,7 @@ export interface BaseCourse {
 	course_id: number;
 	user_id: number;
 	course_name: string;
-	description: string | null;
+	description: string;
 }
 
 export interface CourseDB extends BaseCourse {
