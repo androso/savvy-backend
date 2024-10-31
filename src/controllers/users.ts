@@ -32,12 +32,14 @@ export const createUser = async (
 	if (!user.oai_assistant_id) {
 		try {
 			const assistant = await createAssistant(user);
-			// storing the assitant id in database
+			// storing the assistant id in database
 			await supabase
 				.from("users")
 				.update({ oai_assistant_id: assistant.id })
 				.eq("user_id", user.user_id);
-
+			
+			// Update user variable with oai_assistant_id
+			user.oai_assistant_id = assistant.id;
 		} catch (error) {
 			next(error);
 		}
@@ -47,10 +49,11 @@ export const createUser = async (
 	const secretKey = encoder.encode(process.env.SECRET_KEY);
 	const tokenjwt = await new SignJWT({
 		id: user.user_id,
-		google_id: data.google_id,
-		email: data.email,
+		google_id: user.google_id,
+		email: user.email,
 		display_name: user.display_name,
 		profile_picture_url: user.profile_picture_url,
+		assitant_id: user.oai_assistant_id
 	})
 		.setProtectedHeader({ alg: "HS256" })
 		.setIssuedAt()
@@ -66,6 +69,6 @@ export const createUser = async (
 			sameSite: "strict",
 			maxAge: 18 * 60 * 60 * 1000, // 18 hours
 		});
-		res.status(200).json({ data, tokenjwt });
+		res.status(200).json({ data: user, tokenjwt });
 	}
 };
