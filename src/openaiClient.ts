@@ -2,25 +2,32 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-
+import { UserDb } from "./routes/userRoutes";
+import { createHash } from "crypto";
 dotenv.config();
 
 export const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function createAssistant() {
+export async function createAssistant(user: UserDb) {
 	try {
+		const userTutorId = createHash("sha256")
+			.update(`Tutor-${user.google_id}-${user.email}-${user.user_id}`)
+			.digest("hex");
+
 		const assistant = await openai.beta.assistants.create({
-			name: "AI Tutor",
+			name: userTutorId,
 			instructions:
 				"You are an AI tutor helping students with their questions.",
 			model: "gpt-4-1106-preview",
-		});
-		console.log("Assistant created:", assistant);
+			});
+
+		
 		return assistant;
 	} catch (error) {
 		console.error("Error creating assistant:", error);
+		throw new Error("Failed to create assistant");
 	}
 }
 
