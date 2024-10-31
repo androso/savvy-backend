@@ -1,9 +1,14 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import supabase from "../database/db";
 import { UserDb } from "../routes/userRoutes";
 import { SignJWT } from "jose";
+import { createAssistant } from "../openaiClient";
 
-export const createUser = async (req: Request, res: Response) => {
+export const createUser = async (
+	req: Request,
+	res: Response,
+	next: NextFunction
+) => {
 	const { google_id, email, display_name, profile_picture_url, last_login } =
 		req.body;
 
@@ -16,13 +21,28 @@ export const createUser = async (req: Request, res: Response) => {
 		.select("*")
 		.single();
 
-	if (!data || !data.google_id || !data.email) {
+	const user = data as UserDb;
+	if (!user || !user.google_id || !user.email) {
 		res
 			.status(500)
 			.json({ error: "Invalid user data returned from the database" });
 		return;
 	}
-	const user = data as UserDb;
+
+	if (!user.oai_assistant_id) {
+		try {
+			const assistant = await createAssistant(user);
+			// storing the assitant id in database
+			await supabase
+				.from("users")
+				.update({ oai_assistant_id: assistant.id })
+				.eq("user_id", user.user_id);
+
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	const encoder = new TextEncoder();
 	const secretKey = encoder.encode(process.env.SECRET_KEY);
 	const tokenjwt = await new SignJWT({
