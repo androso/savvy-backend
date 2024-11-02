@@ -39,17 +39,16 @@ export async function authenticateToken(
 			res.status(401).json({ error: "User not found" });
 			return;
 		}
-
 		req.user = {
 			id: user.user_id,
-			google_id: payload.user_id,
-			email: payload.user_id,
+			google_id: payload.google_id,
+			email: payload.email,
 			display_name: user.display_name,
 			profile_picture_url: user.profile_picture_url,
 			created_at: new Date(user.created_at),
 			last_login: new Date(user.last_date),
 		} as JwtUser;
-        
+
 		next();
 	} catch (error) {
 		res.status(401).json({ error: "Invalid Token" });
