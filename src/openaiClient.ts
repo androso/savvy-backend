@@ -21,9 +21,8 @@ export async function createAssistant(user: UserDb) {
 			instructions:
 				"You are an AI tutor helping students with their questions.",
 			model: "gpt-4-1106-preview",
-			});
+		});
 
-		
 		return assistant;
 	} catch (error) {
 		console.error("Error creating assistant:", error);
@@ -34,10 +33,10 @@ export async function createAssistant(user: UserDb) {
 export async function createThread() {
 	try {
 		const thread = await openai.beta.threads.create();
-		console.log("Thread created:", thread);
 		return thread;
 	} catch (error) {
-		console.error("Error creating thread:", error);
+		console.error(error);
+		throw new Error("Failed to create thread");
 	}
 }
 
