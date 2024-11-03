@@ -31,7 +31,7 @@ export const createFlashCard = async (
         front_content: frontContent,
         back_content: backContent,
         review_date: new Date(),
-        nex_revied_date: nextReviewDate,
+        next_review_date: nextReviewDate,
         rating: rating,
       },
     ]);
@@ -56,6 +56,17 @@ export const createFlashCard = async (
 };
 
 //get flashcard by next_time_review
+
+/**
+ * Reviews flashcards that are due for review.
+ *
+ * This function fetches flashcards from the "flashcards" table in the database
+ * where the `next_review_date` is earlier than the current date and time.
+ * If no flashcards are found, it responds with a 404 status and a message indicating
+ * that no flashcards were found. If flashcards are found, it responds with a 200 status
+ * and the list of flashcards. In case of an error during the fetch operation, it logs
+ * the error and responds with a 500 status and an error message.
+ */
 export const reviewFlashCard = async (
   req: Request,
   res: Response
@@ -78,7 +89,7 @@ export const reviewFlashCard = async (
   }
 };
 
-export const updateNexReview = async (
+export const updateFlashcardReview = async (
   req: Request,
   res: Response
 ): Promise<any> => {

@@ -5,7 +5,7 @@ import supabase from "../database/db";
 import {
   createFlashCard,
   reviewFlashCard,
-  updateNexReview,
+  updateFlashcardReview,
 } from "../controllers/flashcards";
 
 const router = Router();
@@ -84,7 +84,7 @@ router.get(
 router.post(
   "/:id/topics/:topicId/flashcards/:fcId",
   authenticateToken,
-  updateNexReview
+  updateFlashcardReview
 );
 
 export default router;
