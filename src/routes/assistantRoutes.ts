@@ -1,12 +1,10 @@
 import { Router } from "express";
 import {
-	addMessageToThread,
 	createStepsList,
 	createThread,
 	openai,
 } from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
-import { Message } from "openai/resources/beta/threads/messages";
 import { AssistantMessage } from "../schemas/responseSchemas";
 const router = Router();
 
@@ -60,9 +58,35 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     ThreadMessage:
+ *       type: object
+ *       properties:
+ *         type:
+ *           type: string
+ *           enum: [normal, list, concept, eli5, flashcard, detail]
+ *         role:
+ *           type: string
+ *           enum: [user, assistant]
+ *         content:
+ *           type: string
+ *         stepNumber:
+ *           type: number
+ *           description: Only present for concept type messages
+ *     ThreadResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Thread'
+ *         - type: object
+ *           properties:
+ *             messages:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ThreadMessage'
+ *
  * /assistant/threads/{threadId}:
  *   get:
- *     summary: Retrieve a specific thread
+ *     summary: Retrieve a thread with its messages
  *     tags: [Assistant]
  *     security:
  *       - BearerAuth: []
@@ -73,16 +97,22 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
  *         schema:
  *           type: string
  *         description: The ID of the thread to retrieve
+ *       - in: query
+ *         name: course_name
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Name of the course for the welcome message
  *     responses:
  *       200:
- *         description: Thread retrieved successfully
+ *         description: Thread and messages retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
  *                 data:
- *                   $ref: '#/components/schemas/Thread'
+ *                   $ref: '#/components/schemas/ThreadResponse'
  *       401:
  *         description: Unauthorized
  *       404:
@@ -93,34 +123,65 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
 	try {
 		const { threadId } = req.params;
+		const { course_name } = req.query;
 
-		//TODO: add validation to see if the thread belongs to user
-		const thread = await openai.beta.threads.retrieve(threadId);
+		// Get both thread and messages in parallel
+		const [thread, messages] = await Promise.all([
+			openai.beta.threads.retrieve(threadId),
+			openai.beta.threads.messages.list(threadId),
+		]);
+
+		const formattedMessages = [
+			// Initial welcome message
+			{
+				type: "normal",
+				role: "assistant",
+				content: `Hablemos sobre ${course_name}. ¿Qué te gustaría saber al respecto?`,
+			},
+			// Map messages in reverse for chronological order
+			...(messages.data as OpenAIMessage[])
+				.reverse()
+				.map((msg) => {
+					try {
+						if (!msg.content[0]?.text?.value) {
+							throw new Error("Invalid message format");
+						}
+
+						if (msg.role === "assistant") {
+							try {
+								return JSON.parse(msg.content[0].text.value);
+							} catch {
+								return {
+									type: "normal",
+									role: "assistant",
+									content: msg.content[0].text.value,
+								};
+							}
+						}
+
+						return {
+							type: "normal",
+							role: "user",
+							content: msg.content[0].text.value,
+						};
+					} catch (error) {
+						console.error("Error processing message:", error);
+						return null;
+					}
+				})
+				.filter(Boolean),
+		];
+
 		res.status(200).json({
-			data: thread,
+			data: {
+				...thread,
+				messages: formattedMessages,
+			},
 		});
 	} catch (e) {
 		next(e);
 	}
 });
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Message:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *         content:
- *           type: string
- *         role:
- *           type: string
- *           enum: [user, assistant]
- *         created_at:
- *           type: integer
- */
 
 /**
  * @swagger
@@ -184,6 +245,7 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
  *       500:
  *         description: Internal Server Error
  */
+
 router.post(
 	"/threads/:threadId/messages",
 	authenticateToken,
@@ -235,6 +297,120 @@ router.post(
 			});
 
 			res.json(response);
+		} catch (e) {
+			next(e);
+		}
+	}
+);
+
+interface OpenAIMessage {
+	id: string;
+	role: "user" | "assistant";
+	content: Array<{
+		type: "text";
+		text: {
+			value: string;
+			annotations: any[];
+		};
+	}>;
+}
+
+/**
+ * @swagger
+ * /assistant/threads/{threadId}/messages:
+ *   get:
+ *     summary: Retrieve messages from a thread
+ *     tags: [Assistant]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the thread to retrieve messages from
+ *       - in: query
+ *         name: course_name
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Name of the course for the welcome message
+ *     responses:
+ *       200:
+ *         description: Messages retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ThreadMessage'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router.get(
+	"/threads/:threadId/messages",
+	authenticateToken,
+	async (req, res, next) => {
+		try {
+			const { threadId } = req.params;
+			const { course_name } = req.query;
+			const messages = await openai.beta.threads.messages.list(threadId);
+
+			const formattedMessages = [
+				// Initial welcome message
+				{
+					type: "normal",
+					role: "assistant",
+					content: `Hablemos sobre ${course_name}. ¿Qué te gustaría saber al respecto?`,
+				},
+				// Map messages in reverse to maintain chronological order
+				...(messages.data as OpenAIMessage[])
+					.reverse()
+					.map((msg) => {
+						try {
+							// Safety check for message structure
+							if (!msg.content[0]?.text?.value) {
+								throw new Error("Invalid message format");
+							}
+
+							if (msg.role === "assistant") {
+								try {
+									// Parse stored JSON response
+									return JSON.parse(msg.content[0].text.value);
+								} catch {
+									// Fallback for unparseable assistant messages
+									return {
+										type: "normal",
+										role: "assistant",
+										content: msg.content[0].text.value,
+									};
+								}
+							}
+
+							// User messages are always normal type
+							return {
+								type: "normal",
+								role: "user",
+								content: msg.content[0].text.value,
+							};
+						} catch (error) {
+							console.error("Error processing message:", error);
+							return null;
+						}
+					})
+					.filter(Boolean), // Remove any null messages from errors
+			];
+
+			res.json({ messages: formattedMessages });
 		} catch (e) {
 			next(e);
 		}
