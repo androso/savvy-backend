@@ -4,7 +4,7 @@ import { authenticateToken } from "../middleware/authJWT";
 import supabase from "../database/db";
 import {
   createFlashCard,
-  reviewFlashCard,
+  getFlashcardsByTopicAndReviewDate,
   updateFlashcardReview,
 } from "../controllers/flashcards";
 
@@ -78,7 +78,7 @@ router.post(
 router.get(
   "/:id/topics/:topicId/flashcards",
   authenticateToken,
-  reviewFlashCard
+  getFlashcardsByTopicAndReviewDate
 );
 
 router.post(

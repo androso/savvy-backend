@@ -67,26 +67,40 @@ export const createFlashCard = async (
  * and the list of flashcards. In case of an error during the fetch operation, it logs
  * the error and responds with a 500 status and an error message.
  */
-export const reviewFlashCard = async (
-  req: Request,
-  res: Response
+export const getFlashcardsByTopicAndReviewDate = async (
+    req: Request,
+    res: Response
 ): Promise<any> => {
-  try {
-    const { data: flashcards, error } = await supabase
-      .from("flashcards")
-      .select("*")
-      .lt("next_review_date", new Date().toISOString());
-    // Filtrar tarjetas cuya próxima revisión es hoy o antes
-    if (error) {
-      return res.status(404).json({
-        message: "No flashcards found",
-      });
+    try {
+        const { topic_id } = req.body;
+
+        // Check if the topic exists
+        const { data: topic, error: topicError } = await supabase
+            .from("topics")
+            .select("topic_id")
+            .eq("topic_id", topic_id)
+            .single();
+
+        if (topicError || !topic) {
+            return res.status(404).json({ message: "Topic not found" });
+        }
+
+        // Get flashcards for the topic that are due for review today
+        const { data: flashcards, error: flashcardsError } = await supabase
+            .from("flashcards")
+            .select("*")
+            .eq("topic_id", topic_id)
+            .lte("next_review_date", new Date().toISOString());
+
+        if (flashcardsError || !flashcards.length) {
+            return res.status(404).json({ message: "No flashcards found for review today" });
+        }
+
+        res.status(200).json(flashcards);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error fetching flashcards" });
     }
-    res.status(200).json(flashcards);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error fetching flashcards" });
-  }
 };
 
 export const updateFlashcardReview = async (
