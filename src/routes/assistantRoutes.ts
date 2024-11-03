@@ -1,9 +1,5 @@
 import { Router } from "express";
-import {
-	createStepsList,
-	createThread,
-	openai,
-} from "../openaiClient";
+import { createStepsList, createThread, openai } from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
 import { AssistantMessage } from "../schemas/responseSchemas";
 const router = Router();
@@ -47,9 +43,18 @@ const router = Router();
  */
 router.post("/threads", authenticateToken, async (req, res, next) => {
 	try {
+		const { course_name } = req.body;
 		const thread = await createThread();
+		const initialMessage = {
+			type: "normal",
+			role: "assistant",
+			content: `Hablemos sobre ${course_name}. ¿Qué te gustaría saber al respecto?`,
+		};
 		res.status(201).json({
-			data: thread,
+			data: {
+				...thread,
+				messages: [initialMessage],
+			},
 		});
 	} catch (e) {
 		next(e);
