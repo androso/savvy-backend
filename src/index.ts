@@ -5,7 +5,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import courseRoutes from "./routes/courseRoutes";
 import userRoutes from "./routes/userRoutes";
-import flashcard from "./routes/flashcard"
+import flashcard from "./routes/flashcardRoutes"
 import swaggerEndPoint from "./swagger";
 
 const app = express();
@@ -17,7 +17,7 @@ app.use(cookieParser());
 
 app.use("/api/courses", courseRoutes);
 app.use("/api/login", userRoutes);
-app.use('/api/flashcards', flashcard);
+app.use('/api/courses', flashcard);
 
 
 app.listen(port, () => {
