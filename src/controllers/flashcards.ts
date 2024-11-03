@@ -77,3 +77,44 @@ export const reviewFlashCard = async (
     res.status(500).json({ message: "Error fetching flashcards" });
   }
 };
+
+export const updateNexReview = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { flashcardId, rating }: { flashcardId: string; rating: number } =
+      req.body;
+
+    const { data: flashcard, error: flashcardError } = await supabase
+      .from("flashcards")
+      .select("*")
+      .eq("flashcard_id", flashcardId)
+      .single();
+    if (flashcardError || !flashcard) {
+      return res.status(404).json({ message: "Flashcard not found" });
+    }
+
+    const card: Card = createEmptyCard();
+    const params = generatorParameters({ maximum_interval: 1000 });
+    const f: FSRS = fsrs(params);
+    const schedulingCards: Card[] = f.repeat(card, new Date());
+    const next_review = schedulingCards[rating]?.due;
+
+    const { error: updateError } = await supabase
+      .from("flashcards")
+      .update({
+        review_date: new Date(),
+        next_review_date: next_review,
+        rating: rating,
+      })
+      .eq("flashcard_id", flashcardId);
+    if (updateError) {
+      return res.status(400).json({ message: "Error updating flashcard" });
+    }
+    res.status(200).json({ message: "Flashcard updated" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error updating flashcard" });
+  }
+};
