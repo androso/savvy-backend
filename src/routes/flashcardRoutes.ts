@@ -2,7 +2,7 @@ import { Router } from "express";
 import { Request, Response } from "express";
 import { authenticateToken } from "../middleware/authJWT";
 import supabase from "../database/db";
-import { createFlashCard } from "../controllers/flashcards";
+import { createFlashCard, reviewFlashCard } from "../controllers/flashcards";
 
 const router = Router();
 
@@ -69,6 +69,12 @@ router.post(
   "/:id/topics/:topicId/flashcards",
   authenticateToken,
   createFlashCard
+);
+
+router.get(
+  "/:id/topics/:topicId/flashcards",
+  authenticateToken,
+  reviewFlashCard
 );
 
 export default router;

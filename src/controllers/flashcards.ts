@@ -54,3 +54,26 @@ export const createFlashCard = async (
     });
   }
 };
+
+//get flashcard by next_time_review
+export const reviewFlashCard = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { data: flashcards, error } = await supabase
+      .from("flashcards")
+      .select("*")
+      .lt("next_review_date", new Date().toISOString());
+    // Filtrar tarjetas cuya próxima revisión es hoy o antes
+    if (error) {
+      return res.status(404).json({
+        message: "No flashcards found",
+      });
+    }
+    res.status(200).json(flashcards);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching flashcards" });
+  }
+};
