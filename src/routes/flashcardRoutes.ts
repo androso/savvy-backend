@@ -6,6 +6,7 @@ import {
   createFlashCard,
   getFlashcardsByTopicAndReviewDate,
   updateFlashcardReview,
+  createFlashcardWithQuestion
 } from "../controllers/flashcards";
 
 const router = Router();
@@ -69,11 +70,6 @@ router.get(
   }
 );
 
-router.post(
-  "/:id/topics/:topicId/flashcards",
-  authenticateToken,
-  createFlashCard
-);
 
 router.get(
   "/:id/topics/:topicId/flashcards",
@@ -87,4 +83,5 @@ router.post(
   updateFlashcardReview
 );
 
+router.post('/:id/topics/:topicId/flashcards',authenticateToken ,createFlashcardWithQuestion)
 export default router;

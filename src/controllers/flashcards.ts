@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import supabase from "../database/db";
+
 import {
   Card,
   createEmptyCard,
@@ -8,50 +9,93 @@ import {
   generatorParameters,
   Rating,
 } from "ts-fsrs";
+import { date } from "zod";
 
-export const createFlashCard = async (
+const getQuizQuestion = async (
+  typeId: string
+): Promise<FlashcardQuizQuestion> => {
+  const { data, error } = await supabase
+    .from("flashcard_quiz_questions")
+    .select("*")
+    .eq("type_id", typeId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+// Create a quiz question
+const createQuizQuestion = async (
+  question: string,
+  options: string[],
+  correct_option: string
+): Promise<FlashcardQuizQuestion> => {
+  const quizQuestion = {
+    question,
+    options,
+    correct_option,
+  };
+
+  const { data, error } = await supabase
+    .from("flashcard_content")
+    .insert(quizQuestion)
+    .select()
+    .single();
+
+  if (error) console.error(error);
+  return data;
+};
+
+export const createFlashcardWithQuestion = async (
   req: Request,
   res: Response
 ): Promise<any> => {
   try {
-    //content to make the flash card
-    const { frontContent, backContent, topic_id } = req.body;
-    //object card
+    const { question, options, correct_option } = req.body;
+    const topicId = req.params.topicId;
+    // First create the quiz question
+    const quizQuestion = await createQuizQuestion(
+      question,
+      options,
+      correct_option
+    );
+    // Then create the flashcard with FSRS
     const card: Card = createEmptyCard();
     const params = generatorParameters({ maximum_interval: 1000 });
     const f: FSRS = fsrs(params);
-    const rating: Rating = 1;
     const schedulingCards = f.repeat(card, new Date());
-    //compue next review applying an algo
+    //compute next review applying an algo
     const nextReviewDate = schedulingCards[1].log.due;
 
-    const { data, error } = await supabase.from("flashcards").insert([
-      {
-        topic_id,
-        front_content: frontContent,
-        back_content: backContent,
-        review_date: new Date(),
-        next_review_date: nextReviewDate,
-        rating: rating,
-      },
-    ]);
+    // Then create the flashcard using the quiz question's type_id
+    const now = new Date();
+    const flashcard: Partial<Flashcard> = {
+      topic_id: topicId,
+      flashcard_content_id: quizQuestion.flashcard_content_id,
+      review_date: now,
+      next_review_date: nextReviewDate,
+    };
+
+    const { data: createdFlashcard, error } = await supabase
+      .from("flashcards")
+      .insert(flashcard)
+      .select()
+      .single();
 
     if (error) {
       return res
         .status(500)
         .json({ message: "Error creating flash card", error });
     }
-    data
+    // Return the created flashcard and quiz question
+    createdFlashcard
       ? res.status(201).json({
           message: "Flash card created successfully",
-          data: data[0],
+          data: createdFlashcard,
+          quizQuestion,
         })
       : res.status(500).json({ message: "Error: data is null" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      message: "Error creating flash card",
-    });
+    res.status(500).json({ message: "Error creating flashcard" });
   }
 };
 
@@ -68,39 +112,41 @@ export const createFlashCard = async (
  * the error and responds with a 500 status and an error message.
  */
 export const getFlashcardsByTopicAndReviewDate = async (
-    req: Request,
-    res: Response
+  req: Request,
+  res: Response
 ): Promise<any> => {
-    try {
-        const { topic_id } = req.body;
+  try {
+    const { topic_id } = req.body;
 
-        // Check if the topic exists
-        const { data: topic, error: topicError } = await supabase
-            .from("topics")
-            .select("topic_id")
-            .eq("topic_id", topic_id)
-            .single();
+    // Check if the topic exists
+    const { data: topic, error: topicError } = await supabase
+      .from("topics")
+      .select("topic_id")
+      .eq("topic_id", topic_id)
+      .single();
 
-        if (topicError || !topic) {
-            return res.status(404).json({ message: "Topic not found" });
-        }
-
-        // Get flashcards for the topic that are due for review today
-        const { data: flashcards, error: flashcardsError } = await supabase
-            .from("flashcards")
-            .select("*")
-            .eq("topic_id", topic_id)
-            .lte("next_review_date", new Date().toISOString());
-
-        if (flashcardsError || !flashcards.length) {
-            return res.status(404).json({ message: "No flashcards found for review today" });
-        }
-
-        res.status(200).json(flashcards);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Error fetching flashcards" });
+    if (topicError || !topic) {
+      return res.status(404).json({ message: "Topic not found" });
     }
+
+    // Get flashcards for the topic that are due for review today
+    const { data: flashcards, error: flashcardsError } = await supabase
+      .from("flashcards")
+      .select("*")
+      .eq("topic_id", topic_id)
+      .lte("next_review_date", new Date().toISOString());
+
+    if (flashcardsError || !flashcards.length) {
+      return res
+        .status(404)
+        .json({ message: "No flashcards found for review today" });
+    }
+
+    res.status(200).json(flashcards);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching flashcards" });
+  }
 };
 
 export const updateFlashcardReview = async (
