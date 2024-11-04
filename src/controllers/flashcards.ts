@@ -11,18 +11,7 @@ import {
 } from "ts-fsrs";
 import { date } from "zod";
 
-const getQuizQuestion = async (
-  typeId: string
-): Promise<FlashcardQuizQuestion> => {
-  const { data, error } = await supabase
-    .from("flashcard_quiz_questions")
-    .select("*")
-    .eq("type_id", typeId)
-    .single();
 
-  if (error) throw error;
-  return data;
-};
 // Create a quiz question
 const createQuizQuestion = async (
   question: string,
