@@ -77,7 +77,7 @@ router.get(
 );
 
 router.post(
-  "/:id/topics/:topicId/flashcards/:fcId",
+  "/:id/topics/:topicId/flashcards/:flashcardId",
   authenticateToken,
   updateFlashcardReview
 );

@@ -116,13 +116,13 @@ export const getFlashcardsByTopicAndReviewDate = async (
   res: Response
 ): Promise<any> => {
   try {
-    const { topic_id } = req.body;
+    const { topicId } = req.params;
 
     // Check if the topic exists
     const { data: topic, error: topicError } = await supabase
       .from("topics")
       .select("topic_id")
-      .eq("topic_id", topic_id)
+      .eq("topic_id", topicId)
       .single();
 
     if (topicError || !topic) {
@@ -131,18 +131,31 @@ export const getFlashcardsByTopicAndReviewDate = async (
 
     // Get flashcards for the topic that are due for review today
     const { data: flashcards, error: flashcardsError } = await supabase
-      .from("flashcards")
-      .select("*")
-      .eq("topic_id", topic_id)
-      .lte("next_review_date", new Date().toISOString());
-
-    if (flashcardsError || !flashcards.length) {
-      return res
-        .status(404)
-        .json({ message: "No flashcards found for review today" });
-    }
-
-    res.status(200).json(flashcards);
+    .from("flashcards")
+    .select(`
+      flashcard_id,
+      topic_id,
+      created_at,
+      review_date,
+      next_review_date,
+      flashcard_content_id,
+      flashcard_content (
+        question,
+        options,
+        correct_option
+      )
+    `)
+    .eq("topic_id", topicId)
+    .lte("next_review_date", new Date().toISOString());
+  
+  if (flashcardsError) {
+    return res.status(404).json({
+      message: "No flashcards found",
+      error: flashcardsError
+    });
+  }
+  
+  res.status(200).json(flashcards);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error fetching flashcards" });
