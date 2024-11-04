@@ -3,7 +3,6 @@ import { Request, Response } from "express";
 import { authenticateToken } from "../middleware/authJWT";
 import supabase from "../database/db";
 import {
-  createFlashCard,
   getFlashcardsByTopicAndReviewDate,
   updateFlashcardReview,
   createFlashcardWithQuestion
