@@ -9,8 +9,6 @@ import {
   generatorParameters,
   Rating,
 } from "ts-fsrs";
-import { date } from "zod";
-
 
 // Create a quiz question
 const createQuizQuestion = async (
@@ -49,6 +47,7 @@ export const createFlashcardWithQuestion = async (
     );
     // Then create the flashcard with FSRS
     const card: Card = createEmptyCard();
+    
     const params = generatorParameters({ maximum_interval: 1000 });
     const f: FSRS = fsrs(params);
     const schedulingCards = f.repeat(card, new Date());
@@ -120,8 +119,9 @@ export const getFlashcardsByTopicAndReviewDate = async (
 
     // Get flashcards for the topic that are due for review today
     const { data: flashcards, error: flashcardsError } = await supabase
-    .from("flashcards")
-    .select(`
+      .from("flashcards")
+      .select(
+        `
       flashcard_id,
       topic_id,
       created_at,
@@ -133,22 +133,36 @@ export const getFlashcardsByTopicAndReviewDate = async (
         options,
         correct_option
       )
-    `)
-    .eq("topic_id", topicId)
-    .lte("next_review_date", new Date().toISOString());
-  
-  if (flashcardsError) {
-    return res.status(404).json({
-      message: "No flashcards found",
-      error: flashcardsError
-    });
-  }
-  
-  res.status(200).json(flashcards);
+    `
+      )
+      .eq("topic_id", topicId)
+      .lte("next_review_date", new Date().toISOString());
+
+    if (flashcardsError) {
+      return res.status(404).json({
+        message: "No flashcards found",
+        error: flashcardsError,
+      });
+    }
+
+    res.status(200).json(flashcards);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error fetching flashcards" });
   }
+};
+
+const calculateNextReviewDate = (card: Card, rating: number): Date => {
+  const params = generatorParameters({ maximum_interval: 1000 });
+  const f: FSRS = fsrs(params);
+
+  // Use rating to get the correct scheduling card
+  const schedulingCards = f.repeat(card, new Date(), (recordLog: any) => {
+    recordLog.rating = rating;
+    return recordLog;
+  });
+  console.log("Scheduling Cards:", schedulingCards); // Log for debugging
+  return schedulingCards[1].log.due;
 };
 
 export const updateFlashcardReview = async (
@@ -156,38 +170,66 @@ export const updateFlashcardReview = async (
   res: Response
 ): Promise<any> => {
   try {
-    const { flashcardId, rating }: { flashcardId: string; rating: number } =
-      req.body;
+    const { flashcardId, rating } = req.body;
+    console.log("Request Body:", req.body); // Log for debugging
 
-    const { data: flashcard, error: flashcardError } = await supabase
+    // Validate rating
+    if (rating < 1 || rating > 4) {
+      return res.status(400).json({
+        message: "Rating must be between 1 and 4",
+      });
+    }
+
+    // Retrieve the existing flashcard
+    const { data: flashcard, error: fetchError } = await supabase
       .from("flashcards")
       .select("*")
       .eq("flashcard_id", flashcardId)
       .single();
-    if (flashcardError || !flashcard) {
-      return res.status(404).json({ message: "Flashcard not found" });
+
+    if (fetchError || !flashcard) {
+      return res.status(404).json({
+        message: "Flashcard not found",
+        error: fetchError,
+      });
     }
 
-    const card: Card = createEmptyCard();
-    const params = generatorParameters({ maximum_interval: 1000 });
-    const f: FSRS = fsrs(params);
-    const schedulingCards: Card[] = f.repeat(card, new Date());
-    const next_review = schedulingCards[rating]?.due;
+    // Create a Card object from the retrieved flashcard
+    const card = createEmptyCard();
+    console.log("Card Object:", card); // Log for debugging
 
-    const { error: updateError } = await supabase
+    // Calculate the next review date using the rating
+    const nextReviewDate = calculateNextReviewDate(card, rating);
+    console.log("Next Review Date:", nextReviewDate); // Log for debugging
+
+    // Update the flashcard with the new review date
+    const { data: updatedFlashcard, error: updateError } = await supabase
       .from("flashcards")
       .update({
         review_date: new Date(),
-        next_review_date: next_review,
-        rating: rating,
+        next_review_date: nextReviewDate,
       })
-      .eq("flashcard_id", flashcardId);
+      .eq("flashcard_id", flashcardId)
+      .select()
+      .single();
+
     if (updateError) {
-      return res.status(400).json({ message: "Error updating flashcard" });
+      return res.status(500).json({
+        message: "Error updating flashcard review",
+        error: updateError,
+      });
     }
-    res.status(200).json({ message: "Flashcard updated" });
+
+    return res.status(200).json({
+      message: "Flashcard review updated successfully",
+      data: updatedFlashcard,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error updating flashcard" });
+    console.error("Error updating flashcard review:", error);
+    return res.status(500).json({
+      message: "Error updating flashcard review",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 };
+
