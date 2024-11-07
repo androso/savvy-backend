@@ -2,48 +2,58 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-
+import { UserDb } from "./routes/userRoutes";
+import { createHash } from "crypto";
+import { stepListSchema } from "./schemas/responseSchemas";
 dotenv.config();
 
 export const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function createAssistant() {
+export async function createAssistant(user: UserDb) {
 	try {
+		const userTutorId = createHash("sha256")
+			.update(`Tutor-${user.google_id}-${user.email}-${user.user_id}`)
+			.digest("hex");
+
 		const assistant = await openai.beta.assistants.create({
-			name: "AI Tutor",
+			name: userTutorId,
 			instructions:
 				"You are an AI tutor helping students with their questions.",
 			model: "gpt-4-1106-preview",
 		});
-		console.log("Assistant created:", assistant);
+
 		return assistant;
 	} catch (error) {
 		console.error("Error creating assistant:", error);
+		throw new Error("Failed to create assistant");
 	}
 }
 
 export async function createThread() {
 	try {
 		const thread = await openai.beta.threads.create();
-		console.log("Thread created:", thread);
 		return thread;
 	} catch (error) {
-		console.error("Error creating thread:", error);
+		console.error(error);
+		throw new Error("Failed to create thread");
 	}
 }
 
-export async function addMessageToThread(threadId: string, content: string) {
+export async function addMessageToThread(
+	threadId: string,
+	role: "user" | "assistant",
+	content: string
+) {
 	try {
 		const message = await openai.beta.threads.messages.create(threadId, {
-			role: "user",
-			content: content,
+			role,
+			content,
 		});
-		console.log("Message added to thread:", message);
 		return message;
 	} catch (error) {
-		console.error("Error adding message to thread:", error);
+		throw new Error("Failed to add message to thread");
 	}
 }
 
@@ -88,4 +98,24 @@ export async function createSuggestedTopics(
 	});
 
 	return completion.choices[0].message.parsed?.topics ?? [];
+}
+
+export async function createStepsList(topic: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"You are a helpful tutor that creates structured learning outlines",
+			},
+			{
+				role: "user",
+				content: `Create a 5-6 step outline for learning about: ${topic}. Include a brief header text explaining the outline.`,
+			},
+		],
+		response_format: zodResponseFormat(stepListSchema, "stepsList"),
+	});
+
+	return completion.choices[0].message.parsed;
 }

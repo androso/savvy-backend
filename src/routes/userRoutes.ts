@@ -9,6 +9,7 @@ export interface BaseUser {
 	display_name: string;
 	profile_picture_url: string;
 	user_id: number;
+	oai_assistant_id: string;
 }
 
 export interface UserDb extends BaseUser {
