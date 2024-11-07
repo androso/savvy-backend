@@ -5,6 +5,7 @@ import {
 	explainConcept,
 	getDetailedExplanation,
 	getEli5,
+	getFlashcardFromConcept,
 	openai,
 } from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
@@ -387,6 +388,16 @@ router.post(
 						stepNumber,
 						stepTitle,
 					},
+				};
+			} else if (messageType === "flashcard") {
+				const { stepTitle, stepNumber, concept } = req.body;
+
+				const flashcardData = await getFlashcardFromConcept(stepTitle, concept);
+
+				response = {
+					type: "flashcard",
+					role: "assistant",
+					content: flashcardData,
 				};
 			}
 

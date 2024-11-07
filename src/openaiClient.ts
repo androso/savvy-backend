@@ -194,3 +194,32 @@ export async function getDetailedExplanation(
 
 	return completion.choices[0].message.parsed;
 }
+
+const flashcardSchema = z.object({
+	question: z.string(),
+	options: z.array(z.string()),
+	correctOption: z.string(),
+});
+
+export async function getFlashcardFromConcept(
+	stepTitle: string,
+	concept: string
+) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"Eres un tutor que crea flashcards de opción múltiple para evaluar el conocimiento de conceptos. Genera una pregunta con 4 opciones donde solo una es correcta.",
+			},
+			{
+				role: "user",
+				content: `Crea una flashcard para evaluar el concepto: "${concept}" en el contexto de "${stepTitle}". La pregunta debe ser clara y las opciones deben ser plausibles pero solo una correcta.`,
+			},
+		],
+		response_format: zodResponseFormat(flashcardSchema, "flashcard"),
+	});
+
+	return completion.choices[0].message.parsed;
+}
