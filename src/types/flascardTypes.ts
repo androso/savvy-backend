@@ -9,8 +9,15 @@ interface FlashcardQuizQuestion {
     flashcard_id: string
     topic_id?: string
     created_at: Date
-    review_date: Date
-    next_review_date: Date
-    rating?: number
     flashcard_content_id: string  // References FlashcardQuizQuestion type_id
+    next_review: Date
+    stability: number
+    difficulty: number
+    elapsed_days: number
+    scheduled_days: number
+    reps: number
+    lapses: number
+    state: number
+    last_review: Date
+
   }
