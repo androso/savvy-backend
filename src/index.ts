@@ -5,7 +5,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import courseRoutes from "./routes/courseRoutes";
 import userRoutes from "./routes/userRoutes";
-import flashcard from "./routes/flashcard";
+import flashcard from "./routes/flashcardRoutes"
 import swaggerEndPoint from "./swagger";
 import assistantRoutes from "./routes/assistantRoutes";
 
@@ -18,8 +18,9 @@ app.use(cookieParser());
 
 app.use("/api/courses", courseRoutes);
 app.use("/api/login", userRoutes);
-app.use("/api/flashcards", flashcard);
+app.use('/api/courses', flashcard);
 app.use("/api/assistants", assistantRoutes);
+
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 	console.error(err.stack);

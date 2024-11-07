@@ -35,6 +35,9 @@ importers:
       openai:
         specifier: ^4.65.0
         version: 4.65.0(zod@3.23.8)
+      ts-fsrs:
+        specifier: ^4.4.2
+        version: 4.4.2
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -910,6 +913,10 @@ packages:
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
     hasBin: true
+
+  ts-fsrs@4.4.2:
+    resolution: {integrity: sha512-Tbf8MFOA5ZROgVWnHh0SyOPobWME04HAQznv9aDW4sljSzq1mOU2mwnnroGzDVixw5bKIYbJOc3Sg46d7P01vg==}
+    engines: {node: '>=18.0.0'}
 
   ts-node-dev@2.0.0:
     resolution: {integrity: sha512-ywMrhCfH6M75yftYvrvNarLEY+SUXtUvU8/0Z6llrHQVBx12GiFk5sStF8UdfE/yfzk9IAq7O5EEbTQsxlBI8w==}
@@ -1916,6 +1923,8 @@ snapshots:
   tr46@0.0.3: {}
 
   tree-kill@1.2.2: {}
+
+  ts-fsrs@4.4.2: {}
 
   ts-node-dev@2.0.0(@types/node@22.0.2)(typescript@5.5.4):
     dependencies:

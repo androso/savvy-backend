@@ -224,7 +224,7 @@ router.get("/:id/topics", authenticateToken, getTopicsForCourse);
  *       "500":
  *         description: Internal Server Error
  */
-router.get("/:id/topics/:topicId/flashcards", authenticateToken, getFlashcardsForTopic);
+//router.get("/:id/topics/:topicId/flashcards", authenticateToken, getFlashcardsForTopic);
 
 /**
  * @swagger
