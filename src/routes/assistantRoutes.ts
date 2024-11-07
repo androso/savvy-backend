@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { createStepsList, createThread, openai } from "../openaiClient";
+import {
+	createStepsList,
+	createThread,
+	explainConcept,
+	openai,
+} from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
 import { AssistantMessage } from "../schemas/responseSchemas";
 const router = Router();
@@ -281,13 +286,7 @@ router.post(
 	async (req, res, next) => {
 		try {
 			const { threadId } = req.params;
-			const { content, messageType, stepNumber } = req.body;
-
-			// Store user message
-			await openai.beta.threads.messages.create(threadId, {
-				role: "user",
-				content,
-			});
+			const { messageType } = req.body;
 
 			let response: AssistantMessage = {
 				type: "list",
@@ -295,28 +294,34 @@ router.post(
 				content: "",
 			};
 
-			switch (messageType) {
-				case "list":
-					const listResponse = await createStepsList(content);
-					response = {
-						type: "list",
-						role: "assistant",
-						content: listResponse,
-					};
-					break;
+			if (messageType === "list") {
+				const { topic } = req.body;
 
-				case "concept":
-					// const conceptResponse = await explainConcept(content, stepNumber);
-					response = {
-						type: "concept",
-						role: "assistant",
-						content: "",
+				// Store user message
+				await openai.beta.threads.messages.create(threadId, {
+					role: "user",
+					content: topic,
+				});
+
+				const listResponse = await createStepsList(topic);
+				response = {
+					type: "list",
+					role: "assistant",
+					content: listResponse,
+				};
+			} else if (messageType === "concept") {
+				const { stepTitle, stepNumber, topic } = req.body;
+				const conceptResponse = await explainConcept(stepTitle, topic);
+
+				response = {
+					type: "concept",
+					role: "assistant",
+					content: {
+						explanation: conceptResponse?.explanation,
 						stepNumber,
-					};
-
-					break;
-
-				// Additional cases for eli5, flashcard, detail...
+						stepTitle,
+					},
+				};
 			}
 
 			// Store assistant response
@@ -326,7 +331,7 @@ router.post(
 			});
 
 			res.status(201).json({
-				data: response
+				data: response,
 			});
 		} catch (e) {
 			next(e);

@@ -107,7 +107,7 @@ export async function createStepsList(topic: string) {
 			{
 				role: "system",
 				content:
-					"You are a helpful tutor that creates structured learning outlines",
+					"You are a helpful tutor that creates structured learning outlines for students in spanish",
 			},
 			{
 				role: "user",
@@ -115,6 +115,29 @@ export async function createStepsList(topic: string) {
 			},
 		],
 		response_format: zodResponseFormat(stepListSchema, "stepsList"),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+export async function explainConcept(stepTitle: string, topic: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"You are a helpful tutor that explains concepts in a simple way to students in spanish",
+			},
+			{
+				role: "user",
+				content: `Explain the concept of ${stepTitle} in the context of ${topic}, keep it 280 characters long.`,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({ explanation: z.string() }),
+			"concept"
+		),
 	});
 
 	return completion.choices[0].message.parsed;
