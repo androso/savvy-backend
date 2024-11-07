@@ -49,7 +49,18 @@ const router = Router();
 router.post("/threads", authenticateToken, async (req, res, next) => {
 	try {
 		const { course_name } = req.body;
-		const thread = await createThread();
+		const initialMetadata = {
+			sessionStarted: "false",
+			currentStep: "null",
+			sessionSteps: "[]",
+			stepActions: JSON.stringify({
+				eli5: false,
+				flashcard: false,
+				moreDetail: false,
+			}),
+		};
+
+		const thread = await createThread(initialMetadata);
 		const initialMessage = {
 			type: "normal",
 			role: "assistant",
@@ -65,6 +76,34 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 		next(e);
 	}
 });
+
+
+// TO SAVE THE STATE OF THE SESSION
+router.patch(
+	"/threads/:threadId/session",
+	authenticateToken,
+	async (req, res, next) => {
+		try {
+			const { threadId } = req.params;
+			const { sessionStarted, currentStep, sessionSteps, stepActions } =
+				req.body;
+			const metadata = {
+				sessionStarted: sessionStarted.toString(),
+				currentStep: currentStep ? JSON.stringify(currentStep) : "null",
+				sessionSteps: JSON.stringify(sessionSteps),
+				stepActions: JSON.stringify(stepActions),
+			};
+			const thread = await openai.beta.threads.update(threadId, {
+				metadata,
+			});
+			res.status(200).json({
+				data: thread,
+			});
+		} catch (e) {
+			next(e);
+		}
+	}
+);
 
 /**
  * @swagger
@@ -322,7 +361,7 @@ router.post(
 						stepTitle,
 					},
 				};
-			}
+			} 
 
 			// Store assistant response
 			await openai.beta.threads.messages.create(threadId, {
