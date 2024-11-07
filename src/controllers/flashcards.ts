@@ -10,6 +10,14 @@ import {
   Rating,
 } from "ts-fsrs";
 
+function selectCard(scheduling_cards: any, grade: Rating){
+  for (const item of scheduling_cards) {
+      if(item.log.rating === grade){
+          return item;
+      }
+  }
+}
+
 // Create a quiz question
 const createQuizQuestion = async (
   question: string,
@@ -52,15 +60,25 @@ export const createFlashcardWithQuestion = async (
     const f: FSRS = fsrs(params);
     const schedulingCards = f.repeat(card, new Date());
     //compute next review applying an algo
-    const nextReviewDate = schedulingCards[1].log.due;
+    // const nextReviewDate = schedulingCards[Rating.Again].log.due;
+    const selectedCard = selectCard(schedulingCards, Rating['Again']);
+
+    
 
     // Then create the flashcard using the quiz question's type_id
     const now = new Date();
     const flashcard: Partial<Flashcard> = {
       topic_id: topicId,
       flashcard_content_id: quizQuestion.flashcard_content_id,
-      review_date: now,
-      next_review_date: nextReviewDate,
+      next_review: selectedCard.card.due,
+      stability: selectedCard.card.stability,
+      difficulty: selectedCard.card.difficulty,
+      elapsed_days: selectedCard.card.elapsed_days,
+      scheduled_days: selectedCard.card.scheduled_days,
+      reps: selectedCard.card.reps,
+      lapses: selectedCard.card.lapses,
+      state: selectedCard.card.state,
+      last_review: now,
     };
 
     const { data: createdFlashcard, error } = await supabase
@@ -125,8 +143,8 @@ export const getFlashcardsByTopicAndReviewDate = async (
       flashcard_id,
       topic_id,
       created_at,
-      review_date,
-      next_review_date,
+      next_review,
+      last_review,
       flashcard_content_id,
       flashcard_content (
         question,
@@ -136,7 +154,7 @@ export const getFlashcardsByTopicAndReviewDate = async (
     `
       )
       .eq("topic_id", topicId)
-      .lte("next_review_date", new Date().toISOString());
+      .lte("next_review", new Date().toISOString());
 
     if (flashcardsError) {
       return res.status(404).json({
@@ -154,15 +172,17 @@ export const getFlashcardsByTopicAndReviewDate = async (
 
 const calculateNextReviewDate = (card: Card, rating: number): Date => {
   const params = generatorParameters({ maximum_interval: 1000 });
+  console.log("Generator Parameters:", params); // Log for debugging
   const f: FSRS = fsrs(params);
+  console.log("FSRS Object:", f); // Log for debugging
 
   // Use rating to get the correct scheduling card
   const schedulingCards = f.repeat(card, new Date(), (recordLog: any) => {
     recordLog.rating = rating;
     return recordLog;
-  });
+  }); 
   console.log("Scheduling Cards:", schedulingCards); // Log for debugging
-  return schedulingCards[1].log.due;
+  return schedulingCards[rating].log.due;
 };
 
 export const updateFlashcardReview = async (
