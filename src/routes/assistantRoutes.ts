@@ -231,18 +231,42 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
  *             schema:
  *               type: object
  *               properties:
- *                 type:
- *                   type: string
- *                   enum: [list, concept, eli5, flashcard, detail]
- *                 role:
- *                   type: string
- *                   enum: [assistant]
- *                 content:
+ *                 data:
  *                   type: object
- *                   description: Varies based on message type
- *                 stepNumber:
- *                   type: number
- *                   description: Present only for concept messages
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       enum: [list, concept, eli5, flashcard, detail]
+ *                     role:
+ *                       type: string
+ *                       enum: [assistant]
+ *                     content:
+ *                       type: object
+ *                       properties:
+ *                         headerText:
+ *                           type: string
+ *                           description: Introductory text explaining the content
+ *                         steps:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               order:
+ *                                 type: number
+ *                                 description: Step number/order
+ *                               title:
+ *                                 type: string
+ *                                 description: Step title/content
+ *                       required:
+ *                         - headerText
+ *                         - steps
+ *                     stepNumber:
+ *                       type: number
+ *                       description: Present only for concept messages
+ *                   required:
+ *                     - type
+ *                     - role
+ *                     - content
  *       400:
  *         description: Invalid request body
  *       401:
@@ -301,7 +325,9 @@ router.post(
 				content: JSON.stringify(response),
 			});
 
-			res.json(response);
+			res.status(201).json({
+				data: response
+			});
 		} catch (e) {
 			next(e);
 		}
