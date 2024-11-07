@@ -31,9 +31,11 @@ export async function createAssistant(user: UserDb) {
 	}
 }
 
-export async function createThread() {
+export async function createThread(metadata?: any) {
 	try {
-		const thread = await openai.beta.threads.create();
+		const thread = await openai.beta.threads.create({
+			metadata,
+		});
 		return thread;
 	} catch (error) {
 		console.error(error);
