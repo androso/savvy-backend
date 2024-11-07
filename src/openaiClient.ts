@@ -109,11 +109,11 @@ export async function createStepsList(topic: string) {
 			{
 				role: "system",
 				content:
-					"You are a helpful tutor that creates structured learning outlines for students in spanish",
+					"Eres un tutor útil que crea esquemas de aprendizaje estructurados para estudiantes en español",
 			},
 			{
 				role: "user",
-				content: `Create a 5-6 step outline for learning about: ${topic}. Include a brief header text explaining the outline.`,
+				content: `Crea una lista de 5 pasos para aprender sobre: ${topic}. Solo proporciona los pasos, sin explicaciones y un header text explicando el outline que retornaste.`,
 			},
 		],
 		response_format: zodResponseFormat(stepListSchema, "stepsList"),
@@ -139,6 +139,31 @@ export async function explainConcept(stepTitle: string, topic: string) {
 		response_format: zodResponseFormat(
 			z.object({ explanation: z.string() }),
 			"concept"
+		),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+export async function getEli5(concept: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"Eres un tutor que aplica la técnica Feynman para explicar conceptos complejos de manera simple. Debes explicar, usar una analogía y dar un ejemplo, todo en un solo párrafo.",
+			},
+			{
+				role: "user",
+				content: `Explica el concepto "${concept}" como si le estuvieras hablando a un niño de 5 años. Combina la explicación con una analogía y un ejemplo en un solo párrafo, usando lenguaje simple.`,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({
+				explanation: z.string(),
+			}),
+			"eli5"
 		),
 	});
 

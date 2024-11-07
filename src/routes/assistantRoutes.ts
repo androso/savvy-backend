@@ -3,6 +3,7 @@ import {
 	createStepsList,
 	createThread,
 	explainConcept,
+	getEli5,
 	openai,
 } from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
@@ -76,7 +77,6 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 		next(e);
 	}
 });
-
 
 // TO SAVE THE STATE OF THE SESSION
 router.patch(
@@ -361,7 +361,20 @@ router.post(
 						stepTitle,
 					},
 				};
-			} 
+			} else if (messageType === "eli5") {
+				const { stepTitle, stepNumber, concept } = req.body;
+				const eli5Response = await getEli5(concept);
+
+				response = {
+					type: "eli5",
+					role: "assistant",
+					content: {
+						explanation: eli5Response?.explanation,
+						stepNumber,
+						stepTitle,
+					},
+				};
+			}
 
 			// Store assistant response
 			await openai.beta.threads.messages.create(threadId, {
