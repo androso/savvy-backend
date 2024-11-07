@@ -4,6 +4,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { UserDb } from "./routes/userRoutes";
 import { createHash } from "crypto";
+import { stepListSchema } from "./schemas/responseSchemas";
 dotenv.config();
 
 export const openai = new OpenAI({
@@ -40,16 +41,19 @@ export async function createThread() {
 	}
 }
 
-export async function addMessageToThread(threadId: string, content: string) {
+export async function addMessageToThread(
+	threadId: string,
+	role: "user" | "assistant",
+	content: string
+) {
 	try {
 		const message = await openai.beta.threads.messages.create(threadId, {
-			role: "user",
-			content: content,
+			role,
+			content,
 		});
-		console.log("Message added to thread:", message);
 		return message;
 	} catch (error) {
-		console.error("Error adding message to thread:", error);
+		throw new Error("Failed to add message to thread");
 	}
 }
 
@@ -94,4 +98,24 @@ export async function createSuggestedTopics(
 	});
 
 	return completion.choices[0].message.parsed?.topics ?? [];
+}
+
+export async function createStepsList(topic: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"You are a helpful tutor that creates structured learning outlines",
+			},
+			{
+				role: "user",
+				content: `Create a 5-6 step outline for learning about: ${topic}. Include a brief header text explaining the outline.`,
+			},
+		],
+		response_format: zodResponseFormat(stepListSchema, "stepsList"),
+	});
+
+	return completion.choices[0].message.parsed;
 }
