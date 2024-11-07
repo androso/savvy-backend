@@ -169,3 +169,28 @@ export async function getEli5(concept: string) {
 
 	return completion.choices[0].message.parsed;
 }
+
+export async function getDetailedExplanation(
+	stepTitle: string,
+	concept: string
+) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content: `Por favor, expande el siguiente párrafo que se encuentra dentro del contexto de "${stepTitle}", proporcionando más detalles.`,
+			},
+			{
+				role: "user",
+				content: `Expande este parrafo para que pueda comprenderlo de una mejor manera, limitate a 700 caracteres: "${concept}" `,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({ explanation: z.string() }),
+			"concept"
+		),
+	});
+
+	return completion.choices[0].message.parsed;
+}

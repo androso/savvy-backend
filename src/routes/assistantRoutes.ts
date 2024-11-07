@@ -3,6 +3,7 @@ import {
 	createStepsList,
 	createThread,
 	explainConcept,
+	getDetailedExplanation,
 	getEli5,
 	openai,
 } from "../openaiClient";
@@ -370,6 +371,19 @@ router.post(
 					role: "assistant",
 					content: {
 						explanation: eli5Response?.explanation,
+						stepNumber,
+						stepTitle,
+					},
+				};
+			} else if (messageType === "detail") {
+				const { stepTitle, stepNumber, concept } = req.body;
+				const detailResponse = await getDetailedExplanation(stepTitle, concept);
+
+				response = {
+					type: "detail",
+					role: "assistant",
+					content: {
+						explanation: detailResponse?.explanation,
 						stepNumber,
 						stepTitle,
 					},
