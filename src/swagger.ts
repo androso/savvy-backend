@@ -23,7 +23,7 @@ const swaggerDocs = (app: Express, port: number) => {
 		res.setHeader("Content-Type", "application/json");
 		res.send(swaggerSpec);
 	});
-	console.log(`Documentación disponible en http://localhost:${port}/docs.json`);
+	console.log(`Documentación disponible en http://localhost:${port}/docs`);
 };
 
 export default swaggerDocs;
