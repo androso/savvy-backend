@@ -113,7 +113,7 @@ export async function createStepsList(topic: string) {
 			},
 			{
 				role: "user",
-				content: `Crea una lista de 5 pasos para aprender sobre: ${topic}. Solo proporciona los pasos, sin explicaciones y un header text explicando el outline que retornaste.`,
+				content: `Crea una lista de 4 pasos para aprender sobre: ${topic}. La suma de caracteres de los 4 pasos no debe pasar los 500 caracteres. Solo proporciona los pasos, sin explicaciones y un header text explicando el outline que retornaste.`,
 			},
 		],
 		response_format: zodResponseFormat(stepListSchema, "stepsList"),
