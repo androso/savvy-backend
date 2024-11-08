@@ -13,11 +13,11 @@ export const conceptExplanationSchema = z.object({
   rawContent: z.string() 
 });
 
-export type MessageType = "list" | "concept" | "eli5" | "flashcard" | "detail";
+export type MessageType = "list" | "concept" | "eli5" | "flashcard" | "detail" | "normal";
 
 export interface AssistantMessage {
   type: MessageType;
-  role: "assistant";
+  role: "assistant" | "user";
   content: any; // Type varies by message type
   stepNumber?: number;
 }

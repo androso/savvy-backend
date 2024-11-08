@@ -501,7 +501,7 @@ router.post(
 					},
 				};
 			} else if (messageType === "flashcard") {
-				const { stepTitle, stepNumber, concept } = req.body;
+				const { stepTitle, concept } = req.body;
 
 				const flashcardData = await getFlashcardFromConcept(stepTitle, concept);
 
@@ -512,11 +512,27 @@ router.post(
 				};
 			}
 
-			// Store assistant response
-			await openai.beta.threads.messages.create(threadId, {
-				role: "assistant",
-				content: JSON.stringify(response),
-			});
+			if (messageType === "normal") {
+				const { content } = req.body;
+
+				// Store user message
+				await openai.beta.threads.messages.create(threadId, {
+					role: "user",
+					content,
+				});
+
+				response = {
+					type: "normal",
+					role: "user",
+					content,
+				};
+			} else {
+				// Store assistant response
+				await openai.beta.threads.messages.create(threadId, {
+					role: "assistant",
+					content: JSON.stringify(response),
+				});
+			}
 
 			res.status(201).json({
 				data: response,
