@@ -31,9 +31,11 @@ export async function createAssistant(user: UserDb) {
 	}
 }
 
-export async function createThread() {
+export async function createThread(metadata?: any) {
 	try {
-		const thread = await openai.beta.threads.create();
+		const thread = await openai.beta.threads.create({
+			metadata,
+		});
 		return thread;
 	} catch (error) {
 		console.error(error);
@@ -107,14 +109,116 @@ export async function createStepsList(topic: string) {
 			{
 				role: "system",
 				content:
-					"You are a helpful tutor that creates structured learning outlines",
+					"Eres un tutor útil que crea esquemas de aprendizaje estructurados para estudiantes en español",
 			},
 			{
 				role: "user",
-				content: `Create a 5-6 step outline for learning about: ${topic}. Include a brief header text explaining the outline.`,
+				content: `Crea una lista de 4 pasos para aprender sobre: ${topic}. La suma de caracteres de los 4 pasos no debe pasar los 500 caracteres. Solo proporciona los pasos, sin explicaciones y un header text explicando el outline que retornaste.`,
 			},
 		],
 		response_format: zodResponseFormat(stepListSchema, "stepsList"),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+export async function explainConcept(stepTitle: string, topic: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"You are a helpful tutor that explains concepts in a simple way to students in spanish",
+			},
+			{
+				role: "user",
+				content: `Explain the concept of ${stepTitle} in the context of ${topic}, keep it 280 characters long.`,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({ explanation: z.string() }),
+			"concept"
+		),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+export async function getEli5(concept: string) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"Eres un tutor que aplica la técnica Feynman para explicar conceptos complejos de manera simple. Debes explicar, usar una analogía y dar un ejemplo, todo en un solo párrafo.",
+			},
+			{
+				role: "user",
+				content: `Explica el concepto "${concept}" como si le estuvieras hablando a un niño de 5 años. Combina la explicación con una analogía y un ejemplo en un solo párrafo, usando lenguaje simple.`,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({
+				explanation: z.string(),
+			}),
+			"eli5"
+		),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+export async function getDetailedExplanation(
+	stepTitle: string,
+	concept: string
+) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content: `Por favor, expande el siguiente párrafo que se encuentra dentro del contexto de "${stepTitle}", proporcionando más detalles.`,
+			},
+			{
+				role: "user",
+				content: `Expande este parrafo para que pueda comprenderlo de una mejor manera, limitate a 700 caracteres: "${concept}" `,
+			},
+		],
+		response_format: zodResponseFormat(
+			z.object({ explanation: z.string() }),
+			"concept"
+		),
+	});
+
+	return completion.choices[0].message.parsed;
+}
+
+const flashcardSchema = z.object({
+	question: z.string(),
+	options: z.array(z.string()),
+	correctOption: z.string(),
+});
+
+export async function getFlashcardFromConcept(
+	stepTitle: string,
+	concept: string
+) {
+	const completion = await openai.beta.chat.completions.parse({
+		model: "gpt-4o-2024-08-06",
+		messages: [
+			{
+				role: "system",
+				content:
+					"Eres un tutor que crea flashcards de opción múltiple para evaluar el conocimiento de conceptos. Genera una pregunta con 4 opciones donde solo una es correcta.",
+			},
+			{
+				role: "user",
+				content: `Crea una flashcard para evaluar el concepto: "${concept}" en el contexto de "${stepTitle}". La pregunta debe ser clara y las opciones deben ser plausibles pero solo una correcta.`,
+			},
+		],
+		response_format: zodResponseFormat(flashcardSchema, "flashcard"),
 	});
 
 	return completion.choices[0].message.parsed;

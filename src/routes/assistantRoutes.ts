@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { createStepsList, createThread, openai } from "../openaiClient";
+import {
+	createStepsList,
+	createThread,
+	explainConcept,
+	getDetailedExplanation,
+	getEli5,
+	getFlashcardFromConcept,
+	openai,
+} from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
 import { AssistantMessage } from "../schemas/responseSchemas";
 const router = Router();
@@ -19,6 +27,15 @@ const router = Router();
  *           type: integer
  *         metadata:
  *           type: object
+ *           properties:
+ *             sessionStarted:
+ *               type: string
+ *             currentStep:
+ *               type: string
+ *             sessionSteps:
+ *               type: string
+ *             stepActions:
+ *               type: string
  *
  * /assistant/threads:
  *   post:
@@ -26,6 +43,18 @@ const router = Router();
  *     tags: [Assistant]
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               course_name:
+ *                 type: string
+ *                 description: Name of the course to start conversation about
+ *             required:
+ *               - course_name
  *     responses:
  *       201:
  *         description: Thread created successfully
@@ -35,7 +64,29 @@ const router = Router();
  *               type: object
  *               properties:
  *                 data:
- *                   $ref: '#/components/schemas/Thread'
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     object:
+ *                       type: string
+ *                     created_at:
+ *                       type: integer
+ *                     metadata:
+ *                       $ref: '#/components/schemas/Thread/properties/metadata'
+ *                     messages:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                             enum: [normal]
+ *                           role:
+ *                             type: string
+ *                             enum: [assistant]
+ *                           content:
+ *                             type: string
  *       401:
  *         description: Unauthorized
  *       500:
@@ -44,7 +95,18 @@ const router = Router();
 router.post("/threads", authenticateToken, async (req, res, next) => {
 	try {
 		const { course_name } = req.body;
-		const thread = await createThread();
+		const initialMetadata = {
+			sessionStarted: "false",
+			currentStep: "null",
+			sessionSteps: "[]",
+			stepActions: JSON.stringify({
+				eli5: false,
+				flashcard: false,
+				moreDetail: false,
+			}),
+		};
+
+		const thread = await createThread(initialMetadata);
 		const initialMessage = {
 			type: "normal",
 			role: "assistant",
@@ -60,6 +122,93 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 		next(e);
 	}
 });
+
+/**
+ * @swagger
+ * /assistant/threads/{threadId}/session:
+ *   patch:
+ *     summary: Update thread session state
+ *     tags: [Assistant]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the thread to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionStarted:
+ *                 type: boolean
+ *                 description: Flag indicating if the session has started
+ *               currentStep:
+ *                 type: object
+ *                 description: Current step information (nullable)
+ *               sessionSteps:
+ *                 type: array
+ *                 description: List of session steps
+ *               stepActions:
+ *                 type: object
+ *                 properties:
+ *                   eli5:
+ *                     type: boolean
+ *                   flashcard:
+ *                     type: boolean
+ *                   moreDetail:
+ *                     type: boolean
+ *             required:
+ *               - sessionStarted
+ *               - sessionSteps
+ *               - stepActions
+ *     responses:
+ *       200:
+ *         description: Session state updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Thread'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.patch(
+	"/threads/:threadId/session",
+	authenticateToken,
+	async (req, res, next) => {
+		try {
+			const { threadId } = req.params;
+			const { sessionStarted, currentStep, sessionSteps, stepActions } =
+				req.body;
+			const metadata = {
+				sessionStarted: sessionStarted.toString(),
+				currentStep: currentStep ? JSON.stringify(currentStep) : "null",
+				sessionSteps: JSON.stringify(sessionSteps),
+				stepActions: JSON.stringify(stepActions),
+			};
+			const thread = await openai.beta.threads.update(threadId, {
+				metadata,
+			});
+			res.status(200).json({
+				data: thread,
+			});
+		} catch (e) {
+			next(e);
+		}
+	}
+);
 
 /**
  * @swagger
@@ -187,7 +336,6 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
 		next(e);
 	}
 });
-
 /**
  * @swagger
  * /assistant/threads/{threadId}/messages:
@@ -210,21 +358,26 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
  *           schema:
  *             type: object
  *             properties:
- *               content:
- *                 type: string
- *                 description: The message content or topic to process
  *               messageType:
  *                 type: string
  *                 enum: [list, concept, eli5, flashcard, detail]
  *                 description: Type of response expected from the AI
+ *               topic:
+ *                 type: string
+ *                 description: Required for list type messages
+ *               stepTitle:
+ *                 type: string
+ *                 description: Required for concept, eli5, flashcard, and detail messages
  *               stepNumber:
  *                 type: number
- *                 description: Required for concept explanations
+ *                 description: Required for concept, eli5, flashcard, and detail messages
+ *               concept:
+ *                 type: string
+ *                 description: Required for eli5, flashcard, and detail messages
  *             required:
- *               - content
  *               - messageType
  *     responses:
- *       200:
+ *       201:
  *         description: Message processed successfully
  *         content:
  *           application/json:
@@ -241,32 +394,37 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
  *                       type: string
  *                       enum: [assistant]
  *                     content:
- *                       type: object
- *                       properties:
- *                         headerText:
- *                           type: string
- *                           description: Introductory text explaining the content
- *                         steps:
- *                           type: array
- *                           items:
- *                             type: object
- *                             properties:
- *                               order:
- *                                 type: number
- *                                 description: Step number/order
- *                               title:
- *                                 type: string
- *                                 description: Step title/content
- *                       required:
- *                         - headerText
- *                         - steps
- *                     stepNumber:
- *                       type: number
- *                       description: Present only for concept messages
- *                   required:
- *                     - type
- *                     - role
- *                     - content
+ *                       oneOf:
+ *                         - type: object
+ *                           description: List response
+ *                           properties:
+ *                             headerText:
+ *                               type: string
+ *                             steps:
+ *                               type: array
+ *                               items:
+ *                                 type: object
+ *                                 properties:
+ *                                   order:
+ *                                     type: number
+ *                                   title:
+ *                                     type: string
+ *                         - type: object
+ *                           description: Concept/Eli5/Detail response
+ *                           properties:
+ *                             explanation:
+ *                               type: string
+ *                             stepNumber:
+ *                               type: number
+ *                             stepTitle:
+ *                               type: string
+ *                         - type: object
+ *                           description: Flashcard response
+ *                           properties:
+ *                             front:
+ *                               type: string
+ *                             back:
+ *                               type: string
  *       400:
  *         description: Invalid request body
  *       401:
@@ -274,20 +432,13 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
  *       500:
  *         description: Internal Server Error
  */
-
 router.post(
 	"/threads/:threadId/messages",
 	authenticateToken,
 	async (req, res, next) => {
 		try {
 			const { threadId } = req.params;
-			const { content, messageType, stepNumber } = req.body;
-
-			// Store user message
-			await openai.beta.threads.messages.create(threadId, {
-				role: "user",
-				content,
-			});
+			const { messageType } = req.body;
 
 			let response: AssistantMessage = {
 				type: "list",
@@ -295,28 +446,70 @@ router.post(
 				content: "",
 			};
 
-			switch (messageType) {
-				case "list":
-					const listResponse = await createStepsList(content);
-					response = {
-						type: "list",
-						role: "assistant",
-						content: listResponse,
-					};
-					break;
+			if (messageType === "list") {
+				const { topic } = req.body;
 
-				case "concept":
-					// const conceptResponse = await explainConcept(content, stepNumber);
-					response = {
-						type: "concept",
-						role: "assistant",
-						content: "",
+				// Store user message
+				await openai.beta.threads.messages.create(threadId, {
+					role: "user",
+					content: topic,
+				});
+
+				const listResponse = await createStepsList(topic);
+				response = {
+					type: "list",
+					role: "assistant",
+					content: listResponse,
+				};
+			} else if (messageType === "concept") {
+				const { stepTitle, stepNumber, topic } = req.body;
+				const conceptResponse = await explainConcept(stepTitle, topic);
+
+				response = {
+					type: "concept",
+					role: "assistant",
+					content: {
+						explanation: conceptResponse?.explanation,
 						stepNumber,
-					};
+						stepTitle,
+					},
+				};
+			} else if (messageType === "eli5") {
+				const { stepTitle, stepNumber, concept } = req.body;
+				const eli5Response = await getEli5(concept);
 
-					break;
+				response = {
+					type: "eli5",
+					role: "assistant",
+					content: {
+						explanation: eli5Response?.explanation,
+						stepNumber,
+						stepTitle,
+					},
+				};
+			} else if (messageType === "detail") {
+				const { stepTitle, stepNumber, concept } = req.body;
+				const detailResponse = await getDetailedExplanation(stepTitle, concept);
 
-				// Additional cases for eli5, flashcard, detail...
+				response = {
+					type: "detail",
+					role: "assistant",
+					content: {
+						explanation: detailResponse?.explanation,
+						stepNumber,
+						stepTitle,
+					},
+				};
+			} else if (messageType === "flashcard") {
+				const { stepTitle, stepNumber, concept } = req.body;
+
+				const flashcardData = await getFlashcardFromConcept(stepTitle, concept);
+
+				response = {
+					type: "flashcard",
+					role: "assistant",
+					content: flashcardData,
+				};
 			}
 
 			// Store assistant response
@@ -326,7 +519,7 @@ router.post(
 			});
 
 			res.status(201).json({
-				data: response
+				data: response,
 			});
 		} catch (e) {
 			next(e);
@@ -378,7 +571,21 @@ interface OpenAIMessage {
  *                 messages:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/ThreadMessage'
+ *                     type: object
+ *                     properties:
+ *                       type:
+ *                         type: string
+ *                         enum: [normal, list, concept, eli5, flashcard, detail]
+ *                         default: normal
+ *                       role:
+ *                         type: string
+ *                         enum: [user, assistant]
+ *                       content:
+ *                         type: string
+ *                     required:
+ *                       - type
+ *                       - role
+ *                       - content
  *       401:
  *         description: Unauthorized
  *       404:
@@ -386,7 +593,6 @@ interface OpenAIMessage {
  *       500:
  *         description: Internal Server Error
  */
-
 router.get(
 	"/threads/:threadId/messages",
 	authenticateToken,
