@@ -10,6 +10,7 @@ import {
 } from "../openaiClient";
 import { authenticateToken } from "../middleware/authJWT";
 import { AssistantMessage } from "../schemas/responseSchemas";
+import supabase from "../database/db";
 const router = Router();
 
 /**
@@ -94,7 +95,7 @@ const router = Router();
  */
 router.post("/threads", authenticateToken, async (req, res, next) => {
 	try {
-		const { course_name } = req.body;
+		const { course_name, course_id } = req.body;
 		const initialMetadata = {
 			sessionStarted: "false",
 			currentStep: "null",
@@ -103,6 +104,10 @@ router.post("/threads", authenticateToken, async (req, res, next) => {
 				eli5: false,
 				flashcard: false,
 				moreDetail: false,
+			}),
+			course: JSON.stringify({
+				courseName: course_name,
+				courseId: course_id,
 			}),
 		};
 
@@ -278,7 +283,7 @@ router.get("/threads/:threadId", authenticateToken, async (req, res, next) => {
 	try {
 		const { threadId } = req.params;
 		const { course_name } = req.query;
-
+		console.log({ course_name });
 		// Get both thread and messages in parallel
 		const [thread, messages] = await Promise.all([
 			openai.beta.threads.retrieve(threadId),
@@ -448,6 +453,16 @@ router.post(
 
 			if (messageType === "list") {
 				const { topic } = req.body;
+				// get from openai metadata the course
+				const thread = await openai.beta.threads.retrieve(threadId);
+				// store in supabase this topic and add the course as a column
+				const { data, error } = await supabase.from("topics").upsert(
+					{
+						topic_name: topic,
+						course_id: JSON.parse((thread.metadata as any).course).courseId,
+					},
+					{ onConflict: "topic_name" }
+				);
 
 				// Store user message
 				await openai.beta.threads.messages.create(threadId, {
