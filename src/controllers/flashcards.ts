@@ -1,44 +1,21 @@
 import { Request, Response } from "express";
 import supabase from "../database/db";
+export { selectCard, getRating } from "../helpers/flashcardsHelpers";
 
 import {
   Card,
+  CardInput,
   createEmptyCard,
   FSRS,
   fsrs,
   generatorParameters,
   Rating,
 } from "ts-fsrs";
-
-function selectCard(scheduling_cards: any, grade: Rating){
-  for (const item of scheduling_cards) {
-      if(item.log.rating === grade){
-          return item;
-      }
-  }
-}
-
-// Create a quiz question
-const createQuizQuestion = async (
-  question: string,
-  options: string[],
-  correct_option: string
-): Promise<FlashcardQuizQuestion> => {
-  const quizQuestion = {
-    question,
-    options,
-    correct_option,
-  };
-
-  const { data, error } = await supabase
-    .from("flashcard_content")
-    .insert(quizQuestion)
-    .select()
-    .single();
-
-  if (error) console.error(error);
-  return data;
-};
+import {
+  getRating,
+  selectCard,
+  createQuizQuestion,
+} from "../helpers/flashcardsHelpers";
 
 export const createFlashcardWithQuestion = async (
   req: Request,
@@ -55,15 +32,14 @@ export const createFlashcardWithQuestion = async (
     );
     // Then create the flashcard with FSRS
     const card: Card = createEmptyCard();
-    
+
     const params = generatorParameters({ maximum_interval: 1000 });
     const f: FSRS = fsrs(params);
     const schedulingCards = f.repeat(card, new Date());
     //compute next review applying an algo
     // const nextReviewDate = schedulingCards[Rating.Again].log.due;
-    const selectedCard = selectCard(schedulingCards, Rating['Again']);
-
-    
+    const rate = "Again";
+    const selectedCard = selectCard(schedulingCards, Rating[rate]);
 
     // Then create the flashcard using the quiz question's type_id
     const now = new Date();
@@ -105,18 +81,6 @@ export const createFlashcardWithQuestion = async (
   }
 };
 
-//get flashcard by next_time_review
-
-/**
- * Reviews flashcards that are due for review.
- *
- * This function fetches flashcards from the "flashcards" table in the database
- * where the `next_review_date` is earlier than the current date and time.
- * If no flashcards are found, it responds with a 404 status and a message indicating
- * that no flashcards were found. If flashcards are found, it responds with a 200 status
- * and the list of flashcards. In case of an error during the fetch operation, it logs
- * the error and responds with a 500 status and an error message.
- */
 export const getFlashcardsByTopicAndReviewDate = async (
   req: Request,
   res: Response
@@ -170,64 +134,59 @@ export const getFlashcardsByTopicAndReviewDate = async (
   }
 };
 
-const calculateNextReviewDate = (card: Card, rating: number): Date => {
-  const params = generatorParameters({ maximum_interval: 1000 });
-  console.log("Generator Parameters:", params); // Log for debugging
-  const f: FSRS = fsrs(params);
-  console.log("FSRS Object:", f); // Log for debugging
-
-  // Use rating to get the correct scheduling card
-  const schedulingCards = f.repeat(card, new Date(), (recordLog: any) => {
-    recordLog.rating = rating;
-    return recordLog;
-  }); 
-  console.log("Scheduling Cards:", schedulingCards); // Log for debugging
-  return schedulingCards[rating].log.due;
-};
-
 export const updateFlashcardReview = async (
   req: Request,
   res: Response
 ): Promise<any> => {
   try {
-    const { flashcardId, rating } = req.body;
-    console.log("Request Body:", req.body); // Log for debugging
+    const { flashcardId, rate } = req.body;
 
-    // Validate rating
-    if (rating < 1 || rating > 4) {
-      return res.status(400).json({
-        message: "Rating must be between 1 and 4",
-      });
-    }
-
+    console.log("Request Body:", req.body);
     // Retrieve the existing flashcard
     const { data: flashcard, error: fetchError } = await supabase
       .from("flashcards")
       .select("*")
       .eq("flashcard_id", flashcardId)
       .single();
-
     if (fetchError || !flashcard) {
       return res.status(404).json({
         message: "Flashcard not found",
         error: fetchError,
       });
     }
-
     // Create a Card object from the retrieved flashcard
-    const card = createEmptyCard();
+    const card: CardInput = {
+      state: flashcard.state,
+      due: new Date(flashcard.next_review),
+      stability: flashcard.stability,
+      difficulty: flashcard.difficulty,
+      elapsed_days: flashcard.elapsed_days,
+      scheduled_days: flashcard.scheduled_days,
+      reps: flashcard.reps,
+      lapses: flashcard.lapses,
+      last_review: new Date(),
+    };
     console.log("Card Object:", card); // Log for debugging
+    const params = generatorParameters({ maximum_interval: 1000 });
+    const f: FSRS = fsrs(params);
+    const schedulingCards = f.repeat(card, new Date());
 
-    // Calculate the next review date using the rating
-    const nextReviewDate = calculateNextReviewDate(card, rating);
-    console.log("Next Review Date:", nextReviewDate); // Log for debugging
+    const updateCard = selectCard(schedulingCards, getRating(rate));
+    console.log("this your card?", updateCard);
 
     // Update the flashcard with the new review date
     const { data: updatedFlashcard, error: updateError } = await supabase
       .from("flashcards")
       .update({
-        review_date: new Date(),
-        next_review_date: nextReviewDate,
+        next_review: updateCard.card.due,
+        stability: updateCard.card.stability,
+        difficulty: updateCard.card.difficulty,
+        elapsed_days: updateCard.card.elapsed_days,
+        scheduled_days: updateCard.card.scheduled_days,
+        reps: updateCard.card.reps,
+        lapses: updateCard.card.lapses,
+        state: updateCard.card.state,
+        last_review: new Date(),
       })
       .eq("flashcard_id", flashcardId)
       .select()
@@ -252,4 +211,3 @@ export const updateFlashcardReview = async (
     });
   }
 };
-
