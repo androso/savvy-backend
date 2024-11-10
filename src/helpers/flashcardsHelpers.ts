@@ -22,25 +22,25 @@ export const createQuizQuestion = async (
   return data;
 };
 
-export function selectCard (scheduling_cards: any, grade: Rating) {
-    for (const item of scheduling_cards) {
-        if(item.log.rating === grade){
-            return item;
-        }
+export function selectCard(scheduling_cards: any, grade: Rating) {
+  for (const item of scheduling_cards) {
+    if (item.log.rating === grade) {
+      return item;
     }
   }
+}
 
 export function getRating(rate: string): Rating {
-    switch (rate.toLowerCase()) {
-        case 'again': 
-            return Rating.Again
-        case 'easy':
-            return Rating.Easy;
-        case 'good':
-            return Rating.Good;
-        case 'hard':
-            return Rating.Hard;
-        default:
-            throw new Error(`Invalid rating: ${rate}`);
-    }
+  switch (rate.toLowerCase()) {
+    case "again":
+      return Rating.Again;
+    case "easy":
+      return Rating.Easy;
+    case "good":
+      return Rating.Good;
+    case "hard":
+      return Rating.Hard;
+    default:
+      throw new Error(`Invalid rating: ${rate}`);
+  }
 }

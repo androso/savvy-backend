@@ -4,7 +4,7 @@ import { authenticateToken } from "../middleware/authJWT";
 import {
   getFlashcardsByTopicAndReviewDate,
   updateFlashcardReview,
-  createFlashcardWithQuestion
+  createFlashcardWithQuestion,
 } from "../controllers/flashcards";
 
 /**
@@ -53,7 +53,6 @@ import {
  *               type: string
  *               example: "Paris"
  */
-
 
 const router = Router();
 
@@ -244,6 +243,10 @@ router.post(
  *                   type: string
  *                   example: Error creating flashcard
  */
-router.post('/:id/topics/:topicId/flashcards',authenticateToken ,createFlashcardWithQuestion)
+router.post(
+  "/:id/topics/:topicId/flashcards",
+  authenticateToken,
+  createFlashcardWithQuestion
+);
 
 export default router;
