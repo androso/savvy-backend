@@ -184,50 +184,6 @@ router.get("/:id/topics", authenticateToken, getTopicsForCourse);
 
 /**
  * @swagger
- * /courses/{id}/topics/{topicId}/flashcards:
- *   get:
- *     summary: Get all flashcards for a topic
- *     security:
- *       - bearerAuth: []
- *     tags: [Flashcards]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: The course ID
- *         schema:
- *           type: integer
- *       - in: path
- *         name: topicId
- *         required: true
- *         description: The topic ID
- *         schema:
- *           type: integer
- *     responses:
- *       "200":
- *         description: Successful response with flashcards data
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: "#/components/schemas/Flashcard"
- *             examples:
- *               example1:
- *                 summary: A single flashcard example
- *                 value:
- *                   - flashcard_id: 1
- *                     topic_id: 123
- *                     question: "What is the capital of France?"
- *                     answer: "Paris"
- *                     created_at: "2023-10-01T00:00:00Z"
- *       "500":
- *         description: Internal Server Error
- */
-//router.get("/:id/topics/:topicId/flashcards", authenticateToken, getFlashcardsForTopic);
-
-/**
- * @swagger
  * /courses/{id}:
  *   put:
  *     summary: Update a course
